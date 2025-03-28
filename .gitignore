@@ -1,6 +1,6 @@
 
 # Ignore RStudio project user settings (for all R projects in the repo)
-.Rproj.user/
+#.Rproj.user/
 
 # Ignore R history and workspace files (for all R projects in the repo)
 *.Rhistory
