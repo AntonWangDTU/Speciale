@@ -1,0 +1,33 @@
+
+# Ignore RStudio project user settings (for all R projects in the repo)
+.Rproj.user/
+
+# Ignore R history and workspace files (for all R projects in the repo)
+*.Rhistory
+*.RData
+*.Rapp.history
+
+# Ignore local libraries and dependency management files
+.Rlibrary/
+.renv/
+packrat/
+
+# Ignore temporary files created during runtime (for all R projects)
+*.Rtmp*
+*.Rout
+*.Rout.save
+
+# Ignore compiled code (for all R projects)
+*.o
+*.so
+*.dll
+*.pdb
+
+# Ignore R Markdown output (for all R projects)
+_bookdown/
+_output/
+*.html
+*.pdf
+*.docx
+
+# Ignore any other project-specific files you don't want to track
