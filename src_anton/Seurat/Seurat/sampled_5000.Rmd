@@ -17,8 +17,8 @@ gene_annotations <- readRDS("C:/Users/hostp/Desktop/data/df_gene.RDS")
 
 cao <- readRDS('../../../../data/gene_count_sampled.RDS')
 cao <- CreateSeuratObject(counts = cao)
-cell_annotations <- readRDS("C:/Users/hostp/Desktop/data/df_cell.RDS")
-gene_annotations <- readRDS("C:/Users/hostp/Desktop/data/df_gene.RDS")
+cell_annotations <- readRDS("../../../../data/df_cell.RDS")
+gene_annotations <- readRDS("../../../../data/df_gene.RDS")
 
 # Ensure the cell names in Seurat object and the sample names in cell_annotations match
 common_samples <- intersect(cell_annotations$sample, colnames(cao))
