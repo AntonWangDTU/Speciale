@@ -1,0 +1,51 @@
+---
+title: "cao_in_pbmc3k_pipline"
+output: html_document
+date: "2025-04-01"
+---
+### Data Loading 
+```{r}
+
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+
+# Get the system information
+sys_info <- Sys.info()
+if (grepl("Linux", sys_info["sysname"])) {
+  cao_data <- readRDS('../../../../data/gene_count_sampled.RDS')
+  cell_annotations <- readRDS("../../../../data/df_cell.RDS")
+  gene_annotations <- readRDS("../../../../data/df_gene.RDS")
+} else if (sys_info["sysname"] == "Windows") {
+  cao_data <- readRDS('C:/Users/hostp/Desktop/data/gene_count_sampled.RDS')
+  cell_annotations <- readRDS("C:/Users/hostp/Desktop/data/df_cell.RDS")
+  gene_annotations <- readRDS("C:/Users/hostp/Desktop/data/df_gene.RDS")
+}
+
+
+cao <- CreateSeuratObject(counts = cao_data, project = "cao", meta.data = cell_annotations)
+
+#Add gene ids to RNA@meta.data
+cao[["RNA"]] <- AddMetaData(cao[["RNA"]], metadata = gene_annotations)
+
+#Make subample
+cao_subsample <- subset(cao, cells = sample(Cells(cao), 10000))
+
+features_subsample = cao_subsample[["RNA"]]@meta.data$gene_short_name
+```
+### Quality Control
+```{r}
+
+#Workaround: select the from 
+mito_genes <- cao[["RNA"]]@meta.data$gene_short_name[grep("^MT-", cao[["RNA"]]@meta.data$gene_short_name)]
+# 'gene_metadata' will now contain the mitochondrial genes
+
+
+# Step 2: Use the 'PercentageFeatureSet' function to calculate the percentage of mitochondrial gene expression
+cao_subsample[["percent.mt"]] <- PercentageFeatureSet(cao_subsample, features = mito_genes)
+
+# Visualize QC metrics as a violin plot
+VlnPlot(cao_subsample, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
