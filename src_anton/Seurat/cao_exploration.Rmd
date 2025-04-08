@@ -4,54 +4,58 @@ output: html_document
 ---
 
 ```{r}
-library(dplyr)
 library(Seurat)
+library(tidyverse)
 library(patchwork)
+library(tidyverse)
 library(ggplot2)
 
-# Get the system information
+# Get system info to determine data path
 sys_info <- Sys.info()
 
-#sample size
-sample_size <- 10000
-
-# Check the OS and perform actions based on it
-# Get the system information
-sys_info <- Sys.info()
 if (grepl("Linux", sys_info["sysname"])) {
-  data_dir = '../../../data/'
+  data_dir <- '../../../data/'
 } else if (sys_info["sysname"] == "Windows") {
-  data_dir = 'C:/Users/hostp/Desktop/data/'
+  data_dir <- 'C:/Users/hostp/Desktop/data/'
 }
 
-cao_data <- readRDS(file.path(data_dir, "gene_count_sampled.RDS"))
-cell_annotations <- readRDS(file.path(data_dir, "df_cell.RDS"))
-gene_annotations <- readRDS(file.path(data_dir, "df_gene.RDS"))
+# Path to saved Seurat object
+seurat_path <- file.path(data_dir, "cao_seurat.rds")
 
-cao <- CreateSeuratObject(counts = cao_data, project = "cao")
+# Check if the object already exists
+if (file.exists(seurat_path)) {
+  message("Loading existing Seurat object...")
+  cao <- readRDS(seurat_path)
+} else {
+  message("Creating new Seurat object...")
+
+  # Load raw data
+  cao_data <- readRDS(file.path(data_dir, "gene_count_sampled.RDS"))
+  cell_annotations <- readRDS(file.path(data_dir, "df_cell.RDS"))
+  gene_annotations <- readRDS(file.path(data_dir, "df_gene.RDS"))
+
+  # Create Seurat object
+  cao <- CreateSeuratObject(counts = cao_data, project = "cao")
+
+  # Match cell annotations
+  common_samples <- intersect(cell_annotations$sample, colnames(cao))
+  common_annotations <- cell_annotations[cell_annotations$sample %in% common_samples, ]
+  columns_to_add <- common_annotations[, c("sample", "Organ", "Main_cluster_name", "Organ_cell_lineage")]
+  columns_to_add <- columns_to_add[match(common_samples, colnames(cao)), ]
+
+  # Add metadata
+  cao <- AddMetaData(cao, metadata = columns_to_add)
+  cao[["RNA"]] <- AddMetaData(cao[["RNA"]], metadata = gene_annotations)
 
 
-# Ensure the cell names in Seurat object and the sample names in cell_annotations match
-common_samples <- intersect(cell_annotations$sample, colnames(cao))
+  # Save Seurat object for future use
+  saveRDS(cao, seurat_path)
+  message("Seurat object saved to: ", seurat_path)
+}
 
-# Subset the cell_annotations data to only include rows with common samples
-common_annotations <- cell_annotations[cell_annotations$sample %in% common_samples, ]
-
-# Select specific columns from cell_annotations (e.g., "sample", "cell_type", "treatment")
-columns_to_add <- common_annotations[, c("sample", "Organ", "Main_cluster_name", "Organ_cell_lineage")]  # Replace with your column names
-
-# Ensure that the order of rows in `columns_to_add` matches the order of cells in Seurat object
-columns_to_add <- columns_to_add[match(common_samples, colnames(cao)), ]
-
-# Add all columns from common_annotations to Seurat object's metadata
-cao <- AddMetaData(cao, metadata = columns_to_add)
-#Add gene ids to RNA@meta.data
-cao[["RNA"]] <- AddMetaData(cao[["RNA"]], metadata = gene_annotations)
-
-
-
-#Make subsample
+# Subsample
 cao_subsample <- subset(cao, cells = sample(Cells(cao), 10000))
+
 ```
 
 #### Performing integration analysis
@@ -183,3 +187,109 @@ combined_plot
 
 
 ```
+```{r}
+# Subset data for each organ
+# Instead of merging and losing the cell names, just subset directly from cao_subsample
+
+three_organs <- subset(cao_subsample, subset = Organ %in% c("Lung", "Heart", "Pancreas"))
+
+# Define broad lineages of interest
+epithelial <- subset(three_organs, subset = overall_type == "Epithelial")
+neural <- subset(three_organs, subset = overall_type == "Neural")
+immune <- subset(three_organs, subset = overall_type == "Immune")
+
+
+# Combine all UMAPs to set shared axis limits
+combined_umap <- rbind(epithelial@reductions$umap@cell.embeddings,
+                       neural@reductions$umap@cell.embeddings,
+                       immune@reductions$umap@cell.embeddings)
+
+common_xlim <- range(combined_umap[, 1])
+common_ylim <- range(combined_umap[, 2])
+
+```
+
+```{r}
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+organ_colors <- c("Heart" = "#E64B35", "Lung" = "#4DBBD5", "Pancreas" = "#00A087")
+
+
+p_epithelial <- DimPlot(epithelial, group.by = "Organ", cols = organ_colors) +
+  ggtitle("Epithelial") +
+  xlim(common_xlim) + ylim(common_ylim) +
+  theme(legend.position = "none")
+
+p_neural <- DimPlot(neural, group.by = "Organ", cols = organ_colors) +
+  ggtitle("Neural") +
+  xlim(common_xlim) + ylim(common_ylim) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+
+p_immune <- DimPlot(immune, group.by = "Organ", cols = organ_colors) +
+  ggtitle("Immune") +
+  xlim(common_xlim) + ylim(common_ylim) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.title.y = element_blank())
+
+combined_plot <- p_epithelial + p_neural + p_immune + plot_layout(ncol = 3)
+
+ggsave("../plots/Epithelial_Neural_Immune_Colored_by_Organ.jpg",
+       plot = combined_plot, width = 12, height = 5, dpi = 300)
+
+combined_plot
+
+
+```
+```{r}
+test <- tibble(three_organs@meta.data)
+
+glimpse(test)
+```
+```{r}
+test %>% 
+  filter(overall_type == "Epithelial") %>% 
+  summarise(unique_organs = n_distinct(Organ))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
