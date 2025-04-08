@@ -12,6 +12,9 @@ library(ggplot2)
 # Get the system information
 sys_info <- Sys.info()
 
+#sample size
+sample_size <- 10000
+
 # Check the OS and perform actions based on it
 # Get the system information
 sys_info <- Sys.info()
@@ -25,9 +28,23 @@ cao_data <- readRDS(file.path(data_dir, "gene_count_sampled.RDS"))
 cell_annotations <- readRDS(file.path(data_dir, "df_cell.RDS"))
 gene_annotations <- readRDS(file.path(data_dir, "df_gene.RDS"))
 
-cao <- CreateSeuratObject(counts = cao_data, project = "cao", meta.data = cell_annotations)
+cao <- CreateSeuratObject(counts = cao_data, project = "cao")
 
 
+# Ensure the cell names in Seurat object and the sample names in cell_annotations match
+common_samples <- intersect(cell_annotations$sample, colnames(cao))
+
+# Subset the cell_annotations data to only include rows with common samples
+common_annotations <- cell_annotations[cell_annotations$sample %in% common_samples, ]
+
+# Select specific columns from cell_annotations (e.g., "sample", "cell_type", "treatment")
+columns_to_add <- common_annotations[, c("sample", "Organ", "Main_cluster_name", "Organ_cell_lineage")]  # Replace with your column names
+
+# Ensure that the order of rows in `columns_to_add` matches the order of cells in Seurat object
+columns_to_add <- columns_to_add[match(common_samples, colnames(cao)), ]
+
+# Add all columns from common_annotations to Seurat object's metadata
+cao <- AddMetaData(cao, metadata = columns_to_add)
 #Add gene ids to RNA@meta.data
 cao[["RNA"]] <- AddMetaData(cao[["RNA"]], metadata = gene_annotations)
 
@@ -36,8 +53,6 @@ cao[["RNA"]] <- AddMetaData(cao[["RNA"]], metadata = gene_annotations)
 #Make subsample
 cao_subsample <- subset(cao, cells = sample(Cells(cao), 10000))
 ```
-
-
 
 #### Performing integration analysis
 
@@ -76,23 +91,95 @@ ggsave("../plots/basic_analysis_workflow.jpg", plot = final_plot, width = 40, he
 
 
 
-
+### Making overall celltype classes
 ```{r}
-cao_subsample <- FindVariableFeatures(cao_subsample, selection.method = "vst", nfeatures = 2000)
+library(dplyr)
 
-# Identify the 10 most highly variable genes
-top10 <- head(VariableFeatures(cao_subsample), 10)
+cao_subsample$overall_type <- case_when(
+  grepl("epithelial", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Epithelial",
+  grepl("endothelial", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Endothelial",
+  grepl("Myeloid", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Immune",
+  grepl("Lymphoid", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Immune",
+  grepl("Megakaryocyte|Erythroblast", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Hematopoietic",
+  grepl("neuron|glia|astrocyte|oligodendrocyte|microglia|schwann", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Neural",
+  grepl("muscle", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Muscle",
+  grepl("stromal|mesenchymal", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Stromal",
+  grepl("endocrine", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Endocrine",
+  grepl("mesothelial", cao_subsample$Organ_cell_lineage, ignore.case = TRUE) ~ "Mesothelial",
+  TRUE ~ "Other"
+)
 
-# plot variable features with and without labels
-plot1 <- VariableFeaturePlot(cao_subsample)
-plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-plot1 + plot2
+
+
 ```
 
+```{r}
 
 
 
+lung <- subset(cao_subsample, subset = Organ == "Lung")
+heart <- subset(cao_subsample, subset = Organ == "Heart")
+pancreas <- subset(cao_subsample, subset = Organ == "Pancreas")
 
-### Do it on the full dataset
+
+# Step 1: Identify the common cell types across all three tissues
+common_celltypes <- intersect(
+  unique(lung$overall_type), 
+  intersect(unique(heart$overall_type), unique(pancreas$overall_type))
+)
+
+# Step 2: Subset the data to include only the common cell types
+lung_subset <- subset(lung, overall_type %in% common_celltypes)
+heart_subset <- subset(heart, overall_type %in% common_celltypes)
+pancreas_subset <- subset(pancreas, overall_type %in% common_celltypes)
+
+# Combine the UMAP coordinates to find the global limits
+combined_umap <- rbind(lung_subset@reductions$umap@cell.embeddings,
+                       heart_subset@reductions$umap@cell.embeddings,
+                       pancreas_subset@reductions$umap@cell.embeddings)
+
+# Calculate the common axis limits for x and y
+common_xlim <- range(combined_umap[, 1])  # X-axis limits
+common_ylim <- range(combined_umap[, 2])  # Y-axis limits
+
+# Plot for Lung with the same xlim and ylim
+p1 <- DimPlot(lung_subset, group.by = "overall_type", label = TRUE) +
+  ggtitle("Lung") +
+  xlim(common_xlim) +
+  ylim(common_ylim) +
+  theme(legend.position = "none")  # Remove legend for this plot
+
+# Plot for Heart with the same xlim and ylim
+p2 <- DimPlot(heart_subset, group.by = "overall_type", label = TRUE) +
+  ggtitle("Heart") +
+  xlim(common_xlim) +
+  ylim(common_ylim) +
+  theme(legend.position = "none") +
+  theme(axis.text.y = element_blank(),      # Hides the y-axis labels
+        axis.ticks.y = element_blank(),     # Hides the y-axis ticks
+        axis.line.y = element_blank(),
+        axis.title.y = element_blank())      # Hides the y-axis line
+  # Remove legend for this plot
+
+# Plot for Pancreas with the same xlim and ylim
+p3 <- DimPlot(pancreas_subset, group.by = "overall_type", label = TRUE) +
+  ggtitle("Pancreas") +
+  xlim(common_xlim) +
+  ylim(common_ylim) +
+  theme(axis.text.y = element_blank(),      # Hides the y-axis labels
+        axis.ticks.y = element_blank(),     # Hides the y-axis ticks
+        axis.line.y = element_blank(),
+        axis.title.y = element_blank())      # Hides the y-axis line
+
+# Combine the plots into one grid using patchwork
+library(patchwork)
+combined_plot <- p1 + p2 + p3 + plot_layout(ncol = 3) 
+
+# Display the combined plot
+ggsave("../plots/Lung_Heart_Pancreas_Colored_by_celltype.jpg", plot = combined_plot, width = 10, height = 5, dpi = 300)
+
+# Final display of the combined plot
+combined_plot
 
 
+```
