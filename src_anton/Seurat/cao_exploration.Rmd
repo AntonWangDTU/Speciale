@@ -58,7 +58,7 @@ cao_subsample <- subset(cao, cells = sample(Cells(cao), 10000))
 
 ```
 
-#### Performing integration analysis
+#### Performing standard analysis workflow
 
 ```{r}
 
@@ -82,6 +82,12 @@ cao_subsample <- FindClusters(cao_subsample, resolution = 2, cluster.name = "uni
 ```{r fig-width=10, fig-height=10, out.width='100%'}
 
 cao_subsample <- RunUMAP(cao_subsample, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
+
+
+seurat_path <- file.path(data_dir, "cao_subsample.rds")
+saveRDS(cao_subsample, seurat_path)
+message("Seurat object saved to: ", seurat_path)
+
 # visualize by batch and cell type annotation
 # cell type annotations were previously added by Azimuth
 p1 <- DimPlot(cao_subsample, reduction = "umap.unintegrated", group.by = "seurat_clusters") 
@@ -93,9 +99,8 @@ final_plot <- p1 / p2 / p3  # `/` stacks them vertically
 ggsave("../plots/basic_analysis_workflow.jpg", plot = final_plot, width = 40, height = 40, dpi = 300)
 ```
 
-
-
 ### Making overall celltype classes
+
 ```{r}
 library(dplyr)
 
@@ -116,6 +121,8 @@ cao_subsample$overall_type <- case_when(
 
 
 ```
+
+### PLots of the mappings of the overall_type that Lung, Heart and pancreas has in common
 
 ```{r}
 
@@ -177,35 +184,40 @@ p3 <- DimPlot(pancreas_subset, group.by = "overall_type", label = TRUE) +
 
 # Combine the plots into one grid using patchwork
 library(patchwork)
-combined_plot <- p1 + p2 + p3 + plot_layout(ncol = 3) 
+combined_plot1 <- p1 + p2 + p3 + plot_layout(ncol = 3) 
 
 # Display the combined plot
-ggsave("../plots/Lung_Heart_Pancreas_Colored_by_celltype.jpg", plot = combined_plot, width = 10, height = 5, dpi = 300)
+ggsave("../plots/Lung_Heart_Pancreas_Colored_by_celltype.jpg", plot = combined_plot1, width = 10, height = 5, dpi = 300)
 
 # Final display of the combined plot
-combined_plot
+combined_plot1
 
 
 ```
+
+###Plotting the mappings of overall celltypes that Lung, heart and pancreas have in common. Each plot is an overall celltype where the cells are colored by the organ of origin
+
 ```{r}
 # Subset data for each organ
-# Instead of merging and losing the cell names, just subset directly from cao_subsample
+five_organs <- subset(cao_subsample, subset = Organ %in% c("Lung", "Heart", "Pancreas"))
 
-three_organs <- subset(cao_subsample, subset = Organ %in% c("Lung", "Heart", "Pancreas"))
+# Define new lineages of interest
+endothelial     <- subset(five_organs, subset = overall_type == "Endothelial")
+immune          <- subset(five_organs, subset = overall_type == "Immune")
+stromal         <- subset(five_organs, subset = overall_type == "Stromal")
+hematopoietic   <- subset(five_organs, subset = overall_type == "Hematopoietic")
+neural          <- subset(five_organs, subset = overall_type == "Neural")
 
-# Define broad lineages of interest
-epithelial <- subset(three_organs, subset = overall_type == "Epithelial")
-neural <- subset(three_organs, subset = overall_type == "Neural")
-immune <- subset(three_organs, subset = overall_type == "Immune")
-
-
-# Combine all UMAPs to set shared axis limits
-combined_umap <- rbind(epithelial@reductions$umap@cell.embeddings,
-                       neural@reductions$umap@cell.embeddings,
-                       immune@reductions$umap@cell.embeddings)
+# Combine UMAPs for shared axis limits
+combined_umap <- rbind(endothelial@reductions$umap@cell.embeddings,
+                       immune@reductions$umap@cell.embeddings,
+                       stromal@reductions$umap@cell.embeddings,
+                       hematopoietic@reductions$umap@cell.embeddings,
+                       neural@reductions$umap@cell.embeddings)
 
 common_xlim <- range(combined_umap[, 1])
 common_ylim <- range(combined_umap[, 2])
+
 
 ```
 
@@ -213,83 +225,46 @@ common_ylim <- range(combined_umap[, 2])
 library(Seurat)
 library(ggplot2)
 library(patchwork)
+
 organ_colors <- c("Heart" = "#E64B35", "Lung" = "#4DBBD5", "Pancreas" = "#00A087")
 
+plot_celltype <- function(seurat_obj, title) {
+  DimPlot(seurat_obj, group.by = "Organ", cols = organ_colors) +
+    ggtitle(title) +
+    xlim(common_xlim) + ylim(common_ylim) +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.line.y = element_blank(),
+          axis.title.y = element_blank(),
+          legend.position = "none")
+}
 
-p_epithelial <- DimPlot(epithelial, group.by = "Organ", cols = organ_colors) +
-  ggtitle("Epithelial") +
-  xlim(common_xlim) + ylim(common_ylim) +
-  theme(legend.position = "none")
+p_endothelial   <- plot_celltype(endothelial, "Endothelial")
+p_immune        <- plot_celltype(immune, "Immune")
+p_stromal       <- plot_celltype(stromal, "Stromal")
+p_hematopoietic <- plot_celltype(hematopoietic, "Hematopoietic")
+p_neural        <- plot_celltype(neural, "Neural") + theme(legend.position = "right")
 
-p_neural <- DimPlot(neural, group.by = "Organ", cols = organ_colors) +
-  ggtitle("Neural") +
-  xlim(common_xlim) + ylim(common_ylim) +
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.line.y = element_blank(),
-        axis.title.y = element_blank(),
-        legend.position = "none")
+combined_plot2 <- p_endothelial + p_immune + p_stromal + p_hematopoietic + p_neural + 
+                 plot_layout(ncol = 5)
 
-p_immune <- DimPlot(immune, group.by = "Organ", cols = organ_colors) +
-  ggtitle("Immune") +
-  xlim(common_xlim) + ylim(common_ylim) +
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.line.y = element_blank(),
-        axis.title.y = element_blank())
+ggsave("../plots/Lineages_Colored_by_Organ.jpg",
+       plot = combined_plot2, width = 18, height = 4.5, dpi = 300)
 
-combined_plot <- p_epithelial + p_neural + p_immune + plot_layout(ncol = 3)
-
-ggsave("../plots/Epithelial_Neural_Immune_Colored_by_Organ.jpg",
-       plot = combined_plot, width = 12, height = 5, dpi = 300)
-
-combined_plot
-
+combined_plot2
 
 ```
+
 ```{r}
 test <- tibble(three_organs@meta.data)
 
 glimpse(test)
 ```
+
 ```{r}
-test %>% 
-  filter(overall_type == "Epithelial") %>% 
-  summarise(unique_organs = n_distinct(Organ))
+cao@meta.data %>% 
+  #distinct(Main_cluster_name)
+  filter(grepl("epithelial", Main_cluster_name)) %>% 
+  distinct(Organ)
+  #summarise(unique_organs = n_distinct(overall_type))
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
