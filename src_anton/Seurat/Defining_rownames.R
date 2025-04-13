@@ -15,25 +15,24 @@ if (grepl("Linux", sys_info["sysname"])) {
 } else if (sys_info["sysname"] == "Windows") {
   data_dir = 'C:/Users/hostp/Desktop/data/'
 }
+# Path to saved Seurat object
+seurat_path <- file.path(data_dir, "cao_subsample.rds")
 
-cao_data <- readRDS(file.path(data_dir, "gene_count_sampled.RDS"))
-cell_annotations <- readRDS(file.path(data_dir, "df_cell.RDS"))
-gene_annotations <- readRDS(file.path(data_dir, "df_gene.RDS"))
+# Check if the object already exists
+if (file.exists(seurat_path)) {
+  message("Loading existing Seurat object...")
+  cao_subsample <- readRDS(seurat_path) 
+} else {
+  print("Run cao exploration, to create seurat object")
+}
 
-cao <- CreateSeuratObject(counts = cao_data, project = "cao", meta.data = cell_annotations)
 
-#Add gene ids to RNA@meta.data
-cao[["RNA"]] <- AddMetaData(cao[["RNA"]], metadata = gene_annotations)
-
-
-#Make subsample
-cao_subsample <- subset(cao, cells = sample(Cells(cao), 10000))
 
 # Assuming rownames of your Seurat object are Ensembl IDs with version
 ensembl_ids <- rownames(cao_subsample)
 
 # Create named vector of gene symbols
-ens_to_symbol <- setNames(gene_annotations$gene_short_name, gene_annotations$gene_id)
+ens_to_symbol <- setNames(cao_subsample@assays$RNA@meta.data$gene_short_name, cao_subsample@assays$RNA@meta.data$gene_id)
 
 # Map gene symbols to Seurat object rownames
 gene_symbols <- ens_to_symbol[ensembl_ids]
@@ -70,4 +69,7 @@ cao_subsample_agg <- CreateSeuratObject(counts = counts_agg)
 sum(duplicated(rownames(cao_subsample_agg)))
 
 
+seurat_path <- file.path(data_dir, "cao_subsample.rds")
+saveRDS(cao_subsample_agg, seurat_path)
+message("Seurat object saved to: ", seurat_path)
 
