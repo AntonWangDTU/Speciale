@@ -56,7 +56,7 @@ cao_subsample <- FindVariableFeatures(cao_subsample_agg, selection.method = "vst
 # Identify the 10 most highly variable genes
 top10 <- head(VariableFeatures(cao_subsample), 10)
 
-# plot variable features with and without labels
+# plot variable featureswith and without labels
 plot1 <- VariableFeaturePlot(cao_subsample)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
 plot1 + plot2

@@ -82,46 +82,84 @@ print(table(combined$celltype_panc, useNA = "ifany"))
 
 # Optional: Save the integrated object
 saveRDS(combined, file.path(data_dir, "combined_integrated.rds"))
-```
-
-```{r}
-zcombined_meta <- combined@meta.data
-
-
-combined_meta %>%
-  filter(!is.na(celltype))
 
 ```
 
-
+### Differential gene expression between betacells from the panc dataset vs panc cell from cao dataset
 
 ```{r}
 
-panc <- NormalizeData(panc)
-panc <- FindVariableFeatures(panc)
 
 
-cao_subsample_agg <- NormalizeData(cao_subsample_agg)
-cao_subsample_agg <- FindVariableFeatures(cao_subsample_agg)
+# Beta cells from pancreas-only dataset
+beta_panc <- subset(combined, subset = celltype == "beta" & dataset == "pancreas")
+
+# All pancreas cells from multi-organ dataset (cao)
+pancreas_cao <- subset(combined, subset = Organ == "Pancreas" & dataset == "multi_organ")
 
 
-# Select features for integration
-features <- SelectIntegrationFeatures(object.list = list(cao_subsample_agg, panc))
 
-# Find integration anchors
-anchors <- FindIntegrationAnchors(object.list = list(cao_subsample_agg, panc), anchor.features = features)
-
-
-combined <- IntegrateData(anchorset = anchors)
-
-
-DefaultAssay(combined) <- "integrated"
-
-combined <- ScaleData(combined)
-combined <- RunPCA(combined)
-combined <- RunUMAP(combined, dims = 1:30)
-combined <- FindNeighbors(combined, dims = 1:30)
-combined <- FindClusters(combined, resolution = 0.5)
 
 ```
+
+From chat
+
+🧬 3. Merge them into one object
+r
+Copy
+Edit
+# Combine into one object
+comparison_obj <- merge(beta_panc, y = pancreas_cao)
+
+# Create a label for comparison
+comparison_obj$group <- paste0(comparison_obj$dataset, "_", comparison_obj$celltype)
+Idents(comparison_obj) <- "group"
+
+# See identity levels
+levels(Idents(comparison_obj))
+You should now see identities like:
+
+csharp
+Copy
+Edit
+[1] "pancreas_beta"      "cao_alpha" "cao_delta" ...
+🔬 4. Run DE between beta_panc and all cao pancreas cells
+You can either:
+
+Keep the subtypes (alpha, delta, etc.) and compare all of them together
+
+Or assign them a shared identity so they're treated as one group
+
+Option A — Compare beta vs. all cao pancreas
+r
+Copy
+Edit
+# Assign new labels: beta_panc vs multi_pancreas
+comparison_obj$group2 <- ifelse(comparison_obj$dataset == "pancreas", "beta_panc", "multi_pancreas")
+Idents(comparison_obj) <- "group2"
+
+# Run differential expression
+de_results <- FindMarkers(comparison_obj, ident.1 = "beta_panc", ident.2 = "multi_pancreas")
+head(de_results)
+📊 Optional: Plot some DEGs
+r
+Copy
+Edit
+# Top DE gene
+top_gene <- rownames(de_results)[1]
+
+VlnPlot(comparison_obj, features = top_gene, group.by = "group2", pt.size = 0.1)
+Let me know if you’d like to:
+
+Export DE results to CSV
+
+Plot more genes
+
+Use only variable features or set thresholds
+
+Or check for batch effects
+
+I'm happy to help refine it based on what you want to explore 🧪📈
+
+
 
