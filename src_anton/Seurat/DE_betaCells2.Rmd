@@ -1,0 +1,127 @@
+---
+title: "DE_beta2"
+output: html_document
+date: "2025-04-15"
+---
+
+```{r}
+
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(tidyverse)
+library(ggplot2)
+library(SeuratData)
+InstallData("panc8")
+
+
+# Get system info to determine data path
+sys_info <- Sys.info()
+
+if (grepl("Linux", sys_info["sysname"])) {
+  data_dir <- '../../../data/'
+} else if (sys_info["sysname"] == "Windows") {
+  data_dir <- 'C:/Users/hostp/Desktop/data/'
+}
+
+# Path to saved Seurat object
+# We are using a subsample of the cao dataset where the 
+# dublicate rownames i.e genes has been merged/aggregated
+seurat_path <- file.path(data_dir, "cao_sub_agg.rds")
+
+# Check if the object already exists
+if (file.exists(seurat_path)) {
+  message("Loading existing Seurat object...")
+  cao_subsample <- readRDS(seurat_path) 
+} else {
+  print("Run cao exploration, to create seurat object")
+}
+
+panc <- LoadData('panc8')
+```
+
+### From the following a seurat object dataset consisting of both a subsample from the cao dataset and the pancreas only dataset is integrated into the same dataset
+
+```{r}
+# STEP 2: Tag datasets for tracking
+panc$dataset <- "pancreas"
+cao_subsample_agg$dataset <- "multi_organ"
+
+# Preserve Organ info
+panc$Organ <- "pancreas"  # static
+cao_subsample_agg$Organ <- cao_subsample@meta.data$Organ[match(colnames(cao_subsample_agg), colnames(cao_subsample))]
+
+# Preserve cell type info from pancreas dataset
+panc$celltype_panc <- panc$celltype  # rename for clarity
+
+# STEP 3: Normalize and find variable features
+panc <- NormalizeData(panc)
+panc <- FindVariableFeatures(panc)
+
+cao_subsample_agg <- NormalizeData(cao_subsample_agg)
+cao_subsample_agg <- FindVariableFeatures(cao_subsample_agg)
+
+# STEP 4: Integration
+features <- SelectIntegrationFeatures(object.list = list(cao_subsample_agg, panc))
+anchors <- FindIntegrationAnchors(object.list = list(cao_subsample_agg, panc), anchor.features = features)
+combined <- IntegrateData(anchorset = anchors)
+
+# STEP 5: Downstream analysis
+DefaultAssay(combined) <- "integrated"
+
+combined <- ScaleData(combined)
+combined <- RunPCA(combined)
+combined <- RunUMAP(combined, dims = 1:30)
+combined <- FindNeighbors(combined, dims = 1:30)
+combined <- FindClusters(combined, resolution = 0.5)
+
+# STEP 6: Metadata check
+print(table(combined$dataset))
+print(table(combined$Organ))
+print(table(combined$celltype_panc, useNA = "ifany"))
+
+# Optional: Save the integrated object
+saveRDS(combined, file.path(data_dir, "combined_integrated.rds"))
+```
+
+```{r}
+zcombined_meta <- combined@meta.data
+
+
+combined_meta %>%
+  filter(!is.na(celltype))
+
+```
+
+
+
+```{r}
+
+panc <- NormalizeData(panc)
+panc <- FindVariableFeatures(panc)
+
+
+cao_subsample_agg <- NormalizeData(cao_subsample_agg)
+cao_subsample_agg <- FindVariableFeatures(cao_subsample_agg)
+
+
+# Select features for integration
+features <- SelectIntegrationFeatures(object.list = list(cao_subsample_agg, panc))
+
+# Find integration anchors
+anchors <- FindIntegrationAnchors(object.list = list(cao_subsample_agg, panc), anchor.features = features)
+
+
+combined <- IntegrateData(anchorset = anchors)
+
+
+DefaultAssay(combined) <- "integrated"
+
+combined <- ScaleData(combined)
+combined <- RunPCA(combined)
+combined <- RunUMAP(combined, dims = 1:30)
+combined <- FindNeighbors(combined, dims = 1:30)
+combined <- FindClusters(combined, resolution = 0.5)
+
+```
+

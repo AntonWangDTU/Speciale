@@ -68,8 +68,10 @@ cao_subsample_agg <- CreateSeuratObject(counts = counts_agg)
 # Check for duplicates
 sum(duplicated(rownames(cao_subsample_agg)))
 
+cao_subsample_agg@meta.data <- cao_subsample@meta.data[match(colnames(cao_subsample_agg), colnames(cao_subsample)), ]
 
-seurat_path <- file.path(data_dir, "cao_subsample.rds")
+
+seurat_path <- file.path(data_dir, "cao_sub_agg.rds")
 saveRDS(cao_subsample_agg, seurat_path)
 message("Seurat object saved to: ", seurat_path)
 
