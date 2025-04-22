@@ -1,0 +1,123 @@
+---
+title: "DE betacells"
+format: 
+  revealjs:
+    scrollable: true
+    embed-resources: true
+    theme: [night]
+author: "A"
+editor: visual
+---
+
+```{r, message=FALSE, warning=FALSE}
+
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(tidyverse)
+library(ggplot2)
+library(SeuratData)
+InstallData("panc8")
+
+
+# Get system info to determine data path
+sys_info <- Sys.info()
+
+if (grepl("Linux", sys_info["sysname"])) {
+  data_dir <- '../../../data/'
+} else if (sys_info["sysname"] == "Windows") {
+  data_dir <- 'C:/Users/hostp/Desktop/data/'
+}
+
+# Dublicate rownames i.e genes has been merged/aggregated
+cao_sub <- file.path(data_dir, "cao_subsample.rds")
+cao_agg <- file.path(data_dir, "cao_sub_agg.rds")
+
+# Check if the object already exists
+if (file.exists(cao_sub)) {
+  message("Loading existing Seurat object...")
+  cao_subsample <- readRDS(cao_sub) 
+  cao_subsample_agg <- readRDS(cao_agg)
+} else {
+  print("Run cao exploration, to create seurat object")
+}
+
+
+panc <- LoadData('panc8')
+```
+
+## Dataset
+
+-   **A human cell atlas of fetal gene expression** 4 millioner celler fra organerne:
+
+```{r}
+cao_subsample@meta.data$Organ %>% unique()
+```
+
+Og celletyper:
+
+```{r}
+cao_subsample@meta.data$Main_cluster_name %>% n_distinct()
+```
+
+Opdelt i egne overordnede celletyper:
+
+```{r}
+cao_subsample$overall_type %>% unique()
+```
+
+Datasettet er sampled ned til 10000 observation
+
+## Umap plots
+
+-   Her plottet celler fra de overordnede celletyper som Heart, Lung og pancreas har til fælles.
+
+![](C:/Users/hostp/OneDrive/Arch/Speciale/src_anton/plots/Lineages_Colored_by_Organ.jpg){width="150%" height="150%"}
+
+## Umap plots
+
+-   Og her vice versa: celler fra Heart, Lung og Pancreas hvor celler er farvet udfra deres overordnede celletype
+
+![](C:/Users/hostp/OneDrive/Arch/Speciale/src_anton/plots/Lung_Heart_Pancreas_Colored_by_celltype.jpg){width="100%" height="100%"}
+
+## DE analyse
+
+-   Hvad er marker genes når man sammenligner beta celler fra fine grained pancreas dataset med celler fra Cao dataset.
+
+-   Metode: Integrate "panc8" med multi organ dataset for kunne lave DE analyse mellem dem.
+
+Antal features panc8:
+
+```{r}
+length(rownames(panc))
+```
+
+Antal features cao(aggregated feature):
+
+```{r}
+length(rownames(cao_subsample_agg))
+```
+
+Overlappende features mellem panc og cao:
+
+```{r}
+length(intersect(rownames(cao_subsample_agg), rownames(panc)))
+```
+
+Features efter integration: 2000. - 2000 er default antal feattures der bruges i seurat under integration
+
+## Beta celler vs 
+
+- **Pankreas celler** 
+
+Top 10 markers output fra GPT Celltype: "Pancreatic Islet Cells" 
+
+- **Liver og tarm celler**: 
+
+Top 10 markers output fra GPT Celltype: "Endocrine Pancreatic β-cells" 
+
+
+
+
+
+

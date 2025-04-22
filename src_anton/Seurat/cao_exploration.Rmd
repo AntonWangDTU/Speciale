@@ -120,6 +120,9 @@ cao_subsample$overall_type <- case_when(
 )
 
 
+seurat_path <- file.path(data_dir, "cao_subsample.rds")
+saveRDS(cao_subsample, seurat_path)
+message("Seurat object saved to: ", seurat_path)
 
 ```
 

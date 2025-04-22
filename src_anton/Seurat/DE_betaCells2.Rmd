@@ -1,10 +1,10 @@
 ---
-title: "DE_beta2"
+title: "Differential gene expression analysis between beta cells from the \"panc8\" dataset and the several organs from the cao multiorgan datasrt"
 output: html_document
 date: "2025-04-15"
 ---
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 
 library(Seurat)
 library(tidyverse)
@@ -43,7 +43,7 @@ cao_subsample_agg <- cao_subsample
 
 ### From the following a seurat object dataset consisting of both a subsample from the cao dataset and the pancreas only dataset is integrated into the same dataset
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 # STEP 2: Tag datasets for tracking
 panc$dataset <- "pancreas"
 cao_subsample_agg$dataset <- "multi_organ"
@@ -108,6 +108,12 @@ saveRDS(combined, file.path(data_dir, "combined_integrated.rds"))
 
 -   **OXGR1 (Oxoglutarate Receptor 1)** – A G protein-coupled receptor; less is known about its pancreatic role, could be involved in metabolic sensing.
 
+#### Top picks from chatGPT from this information:
+
+Possible Cell Type: Pulmonary neuroendocrine cell (PNEC) or a pancreatic islet cell, potentially a beta cell.
+
+Alveolar Type II cells may also be considered due to SFTPA1, but the strong presence of neuroendocrine markers (IAPP, DLK1, ADCYAP1) makes a neuroendocrine cell more likely.
+
 ```{r}
 # Beta cells from pancreas-only dataset
 beta_panc <- subset(combined, subset = celltype == "beta" & dataset == "pancreas")
@@ -140,19 +146,122 @@ comparison_obj$group2 <- ifelse(comparison_obj$dataset == "pancreas", "beta_panc
 Idents(comparison_obj) <- "group2"
 
 # Run differential expression analysis
-de_results <- FindMarkers(comparison_obj, ident.1 = "beta_panc", ident.2 = "multi_pancreas")
+de_results_beta_vs_CaoPanc <- FindMarkers(comparison_obj, ident.1 = "beta_panc", ident.2 = "multi_pancreas")
 
 # Get the top DE gene
-top_gene <- rownames(de_results)[1]
+top_gene <- rownames(de_results_beta_vs_CaoPanc)[1]
 
 # Plot expression across the two groups
-VlnPlot(comparison_obj, features = top_gene, group.by = "group2", pt.size = 0.1)
+#VlnPlot(comparison_obj, features = top_gene, group.by = "group2", pt.size = 0.1)
 
-de_results %>%
+top_genes <- de_results_beta_vs_CaoPanc %>%
   filter(avg_log2FC > 0) %>%
   arrange(desc(avg_log2FC)) %>%
   rownames() %>% 
   head(10)
+top_genes
+```
 
+#### GPTcelltype
+
+```{r}
+# Load packages
+library(GPTCelltype)
+library(openai)
+# Run GPTCelltype with your custom gene list
+res <- gptcelltype(
+  input = list(beta_cells = top_genes),
+  tissuename = 'human pancreas',  # Specify the tissue name if desired
+  model = 'gpt-4'
+)
+res
+```
+
+### Top 10 differentially expressed gene between beta cells from the pancreas only dataset and the liver and intestine cells from the multi organ dataset
+
+That gene signature is strongly suggestive of a **neuroendocrine cell**, and more specifically, very likely a **pancreatic beta cell** (or closely related endocrine pancreatic cell type). Here's why:
+
+------------------------------------------------------------------------
+
+### 🔍 **Key Gene Highlights and Interpretations**
+
+| Gene       | Function / Association                | Notes                                                                 |
+|------------|----------------------------------------|-----------------------------------------------------------------------|
+| **IAPP**   | Islet Amyloid Polypeptide             | **Canonical beta cell marker**, co-expressed and co-secreted with insulin |
+| **DLK1**   | Developmental Notch ligand            | Expressed in **immature endocrine** cells and some beta subpopulations |
+| **ADCYAP1**| Adenylate Cyclase Activating Peptide  | Neuropeptide active in **islet cells**, involved in insulin regulation |
+| **HAPLN4** | ECM organization / neural functions   | Detected in **endocrine and neural lineages**, emerging beta marker   |
+| **KCNG3**  | Potassium voltage-gated channel       | Implicated in **beta cell excitability**, also found in neurons       |
+| **CDKN1C** | Cyclin-dependent kinase inhibitor      | Regulates **beta cell proliferation**, enriched in mature beta cells  |
+| **HHATL**  | Hedgehog acyltransferase-like protein | Plays role in **Hedgehog signaling**, linked to **beta cell maturation** |
+| **SFTPA1** | Surfactant protein A1                 | Typically **lung-specific**, occasional ectopic expression noted      |
+| **CAPN13** | Calpain-type protease                 | Seen in **endocrine pancreas**, may have roles in intracellular remodeling |
+| **OXGR1**  | Oxoglutarate receptor 1 (GPCR)        | GPCR potentially involved in **metabolic sensing** in endocrine tissue |
+
+
+### 🧠 **Interpretation**
+
+This cell is almost certainly part of the **endocrine pancreas**, most likely a **beta cell**. The combination of: - **IAPP**, **CDKN1C**, **RGS16**, and **HHATL** (classic beta markers)\
+- Plus **ADCYAP1**, **DLK1**, and **RPH3A** (neuroendocrine features)
+
+…makes it highly characteristic of **mature or maturing beta cells**, possibly in a **developmental or regenerating context** due to **DLK1** and **UNC5D**.
+
+```{r}
+# Beta cells from pancreas-only dataset
+beta_panc <- subset(combined, subset = celltype == "beta" & dataset == "pancreas")
+
+# Intestine and Liver cells from multi-organ dataset
+intestine_liver_cao <- subset(combined, subset = Organ %in% c("Intestine", "Liver") & dataset == "multi_organ")
+
+# Keep only intersecting genes
+common_genes <- intersect(rownames(beta_panc), rownames(intestine_liver_cao))
+beta_panc <- subset(beta_panc, features = common_genes)
+intestine_liver_cao <- subset(intestine_liver_cao, features = common_genes)
+
+# Merge the two Seurat objects
+comparison_obj <- merge(beta_panc, y = intestine_liver_cao)
+
+# Create a new group label combining dataset and organ
+comparison_obj$group <- ifelse(comparison_obj$dataset == "pancreas", "beta_panc", comparison_obj$Organ)
+Idents(comparison_obj) <- "group"
+
+# Check identity levels
+levels(Idents(comparison_obj))
+
+# Run differential expression: compare beta cells vs. liver + intestine
+comparison_obj$group2 <- ifelse(comparison_obj$dataset == "pancreas", "beta_panc", "intestine_liver")
+Idents(comparison_obj) <- "group2"
+
+# Run differential expression
+de_results_Beta_vs_LiverIntes <- FindMarkers(comparison_obj, ident.1 = "beta_panc", ident.2 = "intestine_liver")
+
+# Get the top DE gene
+top_gene <- rownames(de_results_Beta_vs_LiverIntes[1])
+
+# Plot expression across the two groups
+VlnPlot(comparison_obj, features = top_gene, group.by = "group2", pt.size = 0.1)
+
+# Top 10 upregulated genes in beta cells
+top_genes <- de_results_Beta_vs_LiverIntes %>%
+  filter(avg_log2FC > 0) %>%
+  arrange(desc(avg_log2FC)) %>%
+  rownames() %>% 
+  head(10)
+```
+
+#### GPTcelltype
+
+
+```{r}
+# Load packages
+library(GPTCelltype)
+library(openai)
+# Run GPTCelltype with your custom gene list
+res <- gptcelltype(
+  input = list(beta_cells = top_genes),
+  tissuename = 'human pancreas',  # Specify the tissue name if desired
+  model = 'gpt-4'
+)
+res
 ```
 
