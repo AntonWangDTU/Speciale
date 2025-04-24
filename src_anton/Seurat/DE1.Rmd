@@ -66,7 +66,7 @@ top_genes <- cao@assays$RNA@meta.data %>%
   head() %>% 
   pull(gene_short_name)
 
-Sys.setenv(OPENAI_API_KEY = '')
+#Needs api key
 
 # Run GPTCelltype with your custom gene list
 res <- gptcelltype(
