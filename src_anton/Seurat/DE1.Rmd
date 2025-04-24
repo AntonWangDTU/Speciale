@@ -1,0 +1,79 @@
+---
+title: "DE mellem forskellige referencer"
+output: html_document
+date: "2025-04-23"
+---
+
+### Loading data
+
+```{r}
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(tidyverse)
+library(ggplot2)
+library(SeuratData)
+# Load packages
+library(GPTCelltype)
+library(openai)
+# Get system info to determine data path
+sys_info <- Sys.info()
+
+if (grepl("Linux", sys_info["sysname"])) {
+  data_dir <- '../../../data/'
+} else if (sys_info["sysname"] == "Windows") {
+  data_dir <- 'C:/Users/hostp/Desktop/data/'
+}
+# Path to saved Seurat object
+# We are using a subsample of the cao dataset where the 
+# dublicate rownames i.e genes has been merged/aggregated
+cao_sub_agg_path <- file.path(data_dir, "cao_sub_agg.rds")
+cao_sub_path <- file.path(data_dir, "cao_subsample.rds")
+cao_path <- file.path(data_dir, "cao_seurat.rds")
+
+# Check if the object already exists
+if (file.exists(cao_sub_path)) {
+  message("Loading existing Seurat object...")
+  cao_sub <- readRDS(cao_sub_path) 
+  cao_sub_agg <- readRDS(cao_sub_agg_path) 
+  cao <- readRDS(cao_path) 
+} else {
+  print("Run cao exploration, to create seurat object")
+}
+
+
+```
+```{r}
+
+```
+
+### Islet endocrine and all other cells 
+
+```{r}
+library(Seurat)
+library(dplyr)
+
+cao <- NormalizeData(cao)
+
+Idents(cao) <- "Main_cluster_name"
+
+# Then find markers for your celltype vs all other cells
+markers <- FindMarkers(cao, ident.1 = "Islet endocrine cells", 
+                       min.pct = 0.25, logfc.threshold = 0.25)
+
+top_genes <- cao@assays$RNA@meta.data %>% 
+  filter(gene_id %in% head(rownames(markers))) %>% 
+  head() %>% 
+  pull(gene_short_name)
+
+Sys.setenv(OPENAI_API_KEY = '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')
+
+# Run GPTCelltype with your custom gene list
+res <- gptcelltype(
+  input = list(beta_cells = top_genes),
+  tissuename = 'human pancreas',  # Specify the tissue name if desired
+  model = 'gpt-4'
+)
+res
+```
+
