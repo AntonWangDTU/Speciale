@@ -1,0 +1,267 @@
+---
+title: "FINAL_tabula_v1"
+author: "Gustav Helms (qbg413)"
+date: "2025-05-16"
+output: html_document
+---
+
+```{r}
+Sys.setenv(OPENAI_API_KEY = 'sk-d8RUXDW_dKijZg3qgg1EIg')
+
+# config.R
+OPENAI_API_KEY <- Sys.getenv("OPENAI_API_KEY")
+BASE_URL <- "https://api.marketplace.novo-genai.com/v1/chat/completions"
+MODEL <- "openai_gpt4_turbo_128k"
+TOP_N_GENES <- 10
+MAX_RETRIES <- 2
+SAMPLE_SIZE <- NULL # FOR NO SUBSET "NULL"
+MIN_CELLS_PER_GROUP <- 30  # RECONSIDER THIS MAYBE
+MARKER_LOG_DIR <- "marker_logs"
+PREDICTION_LOG_FILE <- "predictions_combined.csv"
+```
+
+```{r}
+# Load libraries
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(tidyverse)
+library(ggplot2)
+library(SeuratData)
+library(stringr)
+library(readr)
+
+
+library(httr)
+library(jsonlite)
+
+# Load local functions
+source("cell_typing_functions.R")
+```
+
+```{r}
+# Load data
+obj <- readRDS("data_tabula_sapiens/tabula_preproccesed.rds")
+
+# Rename cols and create organ_celltype column
+obj@meta.data <- obj@meta.data %>%
+  rename(
+    Organ = organ, # INSERT ORGAN COL NAME
+    Celltype = cell_type # SAME HERE
+    ) %>% 
+  mutate(cell_id = rownames(.)) 
+
+# IF SUBSET is not null
+if (!is.null(SAMPLE_SIZE)){
+  obj <- subset(obj, cells = 
+                obj@meta.data %>%
+                group_by(Organ, Celltype) %>%
+                filter(n() >= min(SAMPLE_SIZE, MIN_CELLS_PER_GROUP)) %>%  # First filter groups by size
+                slice_sample(n = SAMPLE_SIZE) %>%    
+                pull(cell_id)
+                )
+} else{
+  obj <- subset(obj, cells = obj@meta.data %>%
+                group_by(Organ, Celltype) %>%
+                filter(n() >= MIN_CELLS_PER_GROUP) %>%  # filter groups by min size
+                pull(cell_id))
+}
+
+# Add Organ_Group column
+organ_to_group <- c(
+  # Digestive system
+  Liver = "Digestive",
+  Pancreas = "Digestive",
+  Small_Intestine = "Digestive",
+  Large_Intestine = "Digestive",
+  Salivary_Gland = "Digestive",
+  Tongue = "Digestive",
+
+  # Respiratory and Immune systems
+  Lung = "RespiratoryImmune",
+  Trachea = "RespiratoryImmune",
+  Spleen = "RespiratoryImmune",
+  Thymus = "RespiratoryImmune",
+  Lymph_Node = "RespiratoryImmune",
+  Blood = "RespiratoryImmune",
+  Bone_Marrow = "RespiratoryImmune",
+
+  # Reproductive and Endocrine
+  Uterus = "ReproductiveEndocrine",
+  Placenta = "ReproductiveEndocrine",
+  Mammary = "ReproductiveEndocrine",
+  Prostate = "ReproductiveEndocrine",
+  Adrenal = "ReproductiveEndocrine",
+
+  # Urinary and Cardiovascular
+  Kidney = "UroCardiac",
+  Bladder = "UroCardiac",
+  Heart = "UroCardiac",
+  Vasculature = "UroCardiac",
+
+  # Musculoskeletal
+  Muscle = "Musculoskeletal",
+  Fat = "Musculoskeletal",
+  Skin = "Musculoskeletal",
+
+  # Neural and Sensory
+  Eye = "NeuralSensory"
+)
+obj@meta.data$Organ_Group <- organ_to_group[obj@meta.data$Organ]
+
+# Rename all organs to not include "_"
+obj$Organ <- gsub("_", " ", obj$Organ)
+
+# Create organ celltype group
+obj$Organ_Celltype = paste(obj$Organ, obj$Celltype, sep = "_")
+
+# IF NOT already: Normalize the data
+#obj <- NormalizeData(obj)
+
+# Set identities
+Idents(obj) <- "Organ_Celltype"
+
+```
+
+
+```{r}
+######## MAIN LOOP ######### 
+
+# Create output directories if not exist
+if (!dir.exists(MARKER_LOG_DIR)) dir.create(MARKER_LOG_DIR)
+
+data_all <- obj
+
+predictions_list <- list()
+i <- 1
+n_iterations <- length(unique(data_all$Organ_Celltype))
+
+start_time <- Sys.time()
+
+completed_runs <- list.files(MARKER_LOG_DIR, pattern = "_markers.csv") %>%
+  str_remove("_markers.csv")
+
+cat("Starting prediction loop...\n")
+cat("Total iterations expected:", n_iterations, "\n\n")
+
+for (group in unique(data_all$Organ_Group)) {
+  data_group <- subset(data_all, Organ_Group == group)
+  
+  for (organ in unique(data_all$Organ[data_all$Organ_Group == group])) {
+    data_organ <- subset(data_group, Organ == organ) 
+    
+    for (cell_type in unique(data_all$Celltype[data_all$Organ == organ])) {
+      
+      combo_name <- paste(group, organ, cell_type, sep = "_")
+      
+      if (combo_name %in% completed_runs) {
+        message(sprintf("✅ Skipping already processed: %s", combo_name))
+        i <- i + 1
+        next
+      }
+      
+      iter_start <- Sys.time()
+      
+      cat(sprintf("[%d/%d] Running: Group = %s | Organ = %s | Celltype = %s\n", 
+                  i, n_iterations, group, organ, cell_type))
+      
+      pred <- run_prediction_for_celltype(data_all, data_group, data_organ, group, organ, cell_type)
+      
+      
+      write_csv(pred, PREDICTION_LOG_FILE, append = file.exists(PREDICTION_LOG_FILE))
+      
+      # Clean up temp dirs to not chrash
+      cleanup_tmp_files()
+      
+      iter_end <- Sys.time()
+      duration <- round(as.numeric(difftime(iter_end, iter_start, units = "secs")), 2)
+      cat(sprintf("  ⏱️ Iteration time: %.2f sec | Total elapsed: %.2f sec\n\n", 
+                  duration, as.numeric(difftime(iter_end, start_time, units = "secs"))))
+      
+      i <- i + 1
+      
+    }
+  }
+}
+
+
+```
+
+
+
+
+```{r}
+library(purrr)
+# Load in the predictions
+predictions_df <- read.csv("predictions_combined.csv")
+
+# Evaluate prediction
+# Split annotated_df into chunks of 10 rows
+chunks <- split(predictions_df, (seq(nrow(predictions_df)) - 1) %/% 10)
+
+# Add progress printing
+results <- map2_dfr(chunks, seq_along(chunks), function(chunk, i) {
+  message(sprintf("Evaluating chunk %d of %d...", i, length(chunks)))
+  tryCatch(
+    evaluate_prediction_llm(chunk),
+    error = function(e) {
+      warning(sprintf("Chunk %d failed: %s", i, e$message))
+      NULL
+    }
+  )
+})
+```
+
+```{r}
+saveRDS(results, "results_tabula.rds")
+```
+
+```{r}
+# Accuracy
+compute_match_accuracy(results)
+```
+
+```{r}
+eval <- results
+eval
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Compute proportions of match types within each Category (Condition, Group, Organ)
+eval_summary <- eval %>%
+  mutate(match = factor(tolower(match), levels = c("no match", "partial match", "match"))) %>% # Reorder match levels
+  gather(key = "CategoryType", value = "Category", Condition, Group, Organ, Query) %>%
+  group_by(CategoryType, Category, match) %>%
+  count() %>%
+  group_by(CategoryType, Category) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup()
+
+# Calculate the order of categories based on the proportion of "match"
+category_order <- eval_summary %>%
+  filter(match == "match") %>%
+  group_by(CategoryType) %>%
+  arrange(desc(prop)) %>%
+  pull(Category) %>%
+  unique()
+
+# Reorder the Category factor levels based on the computed order
+eval_summary$Category <- factor(eval_summary$Category, levels = category_order)
+
+# Create the plot
+ggplot(eval_summary, aes(x = Category, y = prop, fill = match)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("match" = "#1b9e77", "partial match" = "#d95f02", "no match" = "#7570b3")) +
+  labs(x = NULL, y = "Proportion", fill = "Match Type",
+       title = "LLM Prediction Evaluation by Category Type") +
+  facet_wrap(~ CategoryType, scales = "free_x", ncol = 1) + # Create separate plots for each CategoryType
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
