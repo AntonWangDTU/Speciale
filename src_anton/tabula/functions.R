@@ -17,7 +17,7 @@ predict_celltypes <- function(markers_df,
   # Prepare marker list
   marker_list <- markers_df %>%
     group_by(cluster) %>%
-    arrange(desc(avg_log2FC), .by_group = TRUE) %>% # USE EITHER p_val_adj OR avg_log2FC for sorting 
+    arrange(p_val_adj, .by_group = TRUE) %>% # USE EITHER p_val_adj OR avg_log2FC for sorting 
     slice_head(n = top_n_genes) %>%
     summarise(genes = paste(gene, collapse = ", "), .groups = "drop") 
   

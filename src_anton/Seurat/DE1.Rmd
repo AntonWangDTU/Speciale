@@ -24,6 +24,7 @@ if (grepl("Linux", sys_info["sysname"])) {
 } else if (sys_info["sysname"] == "Windows") {
   data_dir <- 'C:/Users/hostp/Desktop/data/'
 }
+
 # Path to saved Seurat object
 # We are using a subsample of the cao dataset where the 
 # dublicate rownames i.e genes has been merged/aggregated
@@ -43,6 +44,8 @@ if (file.exists(cao_sub_path)) {
 
 
 ```
+
+
 ```{r}
 
 ```

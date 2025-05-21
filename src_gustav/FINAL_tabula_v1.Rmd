@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r}
-Sys.setenv(OPENAI_API_KEY = 'sk-d8RUXDW_dKijZg3qgg1EIg')
+Sys.setenv(OPENAI_API_KEY = 'sk-jjP-Nd86f06aJD4VBJWc_w')
 
 # config.R
 OPENAI_API_KEY <- Sys.getenv("OPENAI_API_KEY")
@@ -34,10 +34,154 @@ library(readr)
 
 library(httr)
 library(jsonlite)
+# Accuracy
+compute_match_accuracy(results)
+```
+
+```{r}
+eval <- results
+eval
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Compute proportions of match types within each Category (Condition, Group, Organ)
+eval_summary <- eval %>%
+  mutate(match = factor(tolower(match), levels = c("no match", "partial match", "match"))) %>% # Reorder match levels
+  gather(key = "CategoryType", value = "Category", Condition, Group, Organ, Query) %>%
+  group_by(CategoryType, Category, match) %>%
+  count() %>%
+  group_by(CategoryType, Category) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup()
+
+# Calculate the order of categories based on the proportion of "match"
+category_order <- eval_summary %>%
+  filter(match == "match") %>%
+  group_by(CategoryType) %>%
+  arrange(desc(prop)) %>%
+  pull(Category) %>%
+  unique()
+
+# Reorder the Category factor levels based on the computed order
+eval_summary$Category <- factor(eval_summary$Category, levels = category_order)
+
+# Create the plot
+ggplot(eval_summary, aes(x = Category, y = prop, fill = match)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("match" = "#1b9e77", "partial match" = "#d95f02", "no match" = "#7570b3")) +
+  labs(x = NULL, y = "Proportion", fill = "Match Type",
+       title = "LLM Prediction Evaluation by Category Type") +
+  facet_wrap(~ CategoryType, scales = "free_x", ncol = 1) + # Create separate plots for each CategoryType
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Accuracy
+compute_match_accuracy(results)
+```
+
+```{r}
+eval <- results
+eval
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Compute proportions of match types within each Category (Condition, Group, Organ)
+eval_summary <- eval %>%
+  mutate(match = factor(tolower(match), levels = c("no match", "partial match", "match"))) %>% # Reorder match levels
+  gather(key = "CategoryType", value = "Category", Condition, Group, Organ, Query) %>%
+  group_by(CategoryType, Category, match) %>%
+  count() %>%
+  group_by(CategoryType, Category) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup()
+
+# Calculate the order of categories based on the proportion of "match"
+category_order <- eval_summary %>%
+  filter(match == "match") %>%
+  group_by(CategoryType) %>%
+  arrange(desc(prop)) %>%
+  pull(Category) %>%
+  unique()
+
+# Reorder the Category factor levels based on the computed order
+eval_summary$Category <- factor(eval_summary$Category, levels = category_order)
+
+# Create the plot
+ggplot(eval_summary, aes(x = Category, y = prop, fill = match)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("match" = "#1b9e77", "partial match" = "#d95f02", "no match" = "#7570b3")) +
+  labs(x = NULL, y = "Proportion", fill = "Match Type",
+       title = "LLM Prediction Evaluation by Category Type") +
+  facet_wrap(~ CategoryType, scales = "free_x", ncol = 1) + # Create separate plots for each CategoryType
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# Accuracy
+compute_match_accuracy(results)
+```
+
+```{r}
+eval <- results
+eval
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Compute proportions of match types within each Category (Condition, Group, Organ)
+eval_summary <- eval %>%
+  mutate(match = factor(tolower(match), levels = c("no match", "partial match", "match"))) %>% # Reorder match levels
+  gather(key = "CategoryType", value = "Category", Condition, Group, Organ, Query) %>%
+  group_by(CategoryType, Category, match) %>%
+  count() %>%
+  group_by(CategoryType, Category) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup()
+
+# Calculate the order of categories based on the proportion of "match"
+category_order <- eval_summary %>%
+  filter(match == "match") %>%
+  group_by(CategoryType) %>%
+  arrange(desc(prop)) %>%
+  pull(Category) %>%
+  unique()
+
+# Reorder the Category factor levels based on the computed order
+eval_summary$Category <- factor(eval_summary$Category, levels = category_order)
+
+# Create the plot
+ggplot(eval_summary, aes(x = Category, y = prop, fill = match)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("match" = "#1b9e77", "partial match" = "#d95f02", "no match" = "#7570b3")) +
+  labs(x = NULL, y = "Proportion", fill = "Match Type",
+       title = "LLM Prediction Evaluation by Category Type") +
+  facet_wrap(~ CategoryType, scales = "free_x", ncol = 1) + # Create separate plots for each CategoryType
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+```{r}
 
 # Load local functions
 source("cell_typing_functions.R")
 ```
+
 
 ```{r}
 # Load data

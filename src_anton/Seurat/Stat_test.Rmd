@@ -3,3 +3,418 @@ title: "Stat_test"
 output: html_document
 ---
 
+```{r message=FALSE, warning=FALSE}
+
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(SeuratData)
+# Load packages
+library(GPTCelltype)
+library(openai)
+# Get system info to determine data path
+sys_info <- Sys.info()
+
+if (grepl("Linux", sys_info["sysname"])) {
+  data_dir <- '../../../data/'
+} else if (sys_info["sysname"] == "Windows") {
+  data_dir <- 'C:/Users/hostp/Desktop/data/'
+}
+
+df <- read.csv("../../src_gustav/predictions_combined.csv")
+dim(df)
+```
+
+```{r}
+library(dplyr)
+library(stringr)
+
+df <- df %>%
+  mutate(
+    test_type = word(cluster, 1, sep = "_"),  # All, Group, Organ
+    organ = word(cluster, 2, sep = "_"),      # e.g., Liver, Trachea
+    category = word(cluster, 3, sep = "_"),   # e.g., Digestive, RespiratoryImmune
+    query_status = ifelse(str_detect(cluster, "_query$"), "query", "noquery"),
+    correct = ifelse(actual_cell_type == predicted_cell_type, TRUE,
+                     ifelse(predicted_cell_type == "Can't Identify", NA, FALSE))
+  )
+
+```
+
+```{r}
+
+df <- readRDS("../../src_gustav/results_tabula.rds")
+write.csv(df, "result_tabula.csv", row.names = FALSE)
+
+
+df <- df %>% 
+  rename(tmp1 = Group, tmp2 = Organ) %>% 
+  rename(Organ = tmp1, Group = tmp2)
+
+head(df)
+```
+
+```{r}
+ggplot(df, aes(x = Condition, fill = match)) +
+  geom_bar() +  # position = "stack" is default
+  labs(
+    title = "Match Type Distribution by Condition",
+    x = "Condition",
+    y = "Count",
+    fill = "Match Type"
+  ) +
+  theme_minimal()
+
+
+```
+
+```{r}
+library(tidyverse)
+library(patchwork)  # install with install.packages("patchwork") if needed
+
+# Plot 1: By Condition
+p1 <- ggplot(df, aes(x = Condition, fill = match)) +
+  geom_bar() +
+  labs(title = "Match Type by Condition", x = "Condition", y = "Count") +
+  theme_minimal()
+
+# Plot 2: By Organ
+p2 <- ggplot(df, aes(x = Organ, fill = match)) +
+  geom_bar() +
+  labs(title = "Match Type by Organ", x = "Organ", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Plot 3: By Query
+p3 <- ggplot(df, aes(x = Query, fill = match)) +
+  geom_bar() +
+  labs(title = "Match Type by Query Status", x = "Query", y = "Count") +
+  theme_minimal()
+
+# Combine them vertically
+p1 / p2 / p3
+
+```
+
+```{r}
+library(tidyverse)
+library(scales)     # for percent_format()
+library(patchwork)  # to combine plots
+
+# ---- Preprocess ----
+df <- df %>%
+  mutate(
+    match_score = case_when(
+      match == "Match" ~ 2,
+      match == "Partial Match" ~ 1,
+      TRUE ~ 0
+    ),
+    # Needed for transparency
+    match_alpha = ifelse(match == "No Match", "Transparent", "Opaque")
+  )
+
+df$match <- factor(df$match, levels = c("No Match", "Partial Match", "Match"))
+# ---- Order by Match Score ----
+
+# Condition
+condition_order <- df %>%
+  group_by(Condition) %>%
+  summarise(score = sum(match_score)) %>%
+  arrange(desc(score)) %>%
+  pull(Condition)
+
+df$Condition <- factor(df$Condition, levels = condition_order)
+
+# Organ
+organ_order <- df %>%
+  group_by(Organ) %>%
+  summarise(score = sum(match_score)) %>%
+  arrange(desc(score)) %>%
+  pull(Organ)
+
+df$Organ <- factor(df$Organ, levels = organ_order)
+
+# Query
+query_order <- df %>%
+  group_by(Query) %>%
+  summarise(score = sum(match_score)) %>%
+  arrange(desc(score)) %>%
+  pull(Query)
+
+df$Query <- factor(df$Query, levels = query_order)
+
+# ---- Plot 1: Condition ----
+p1 <- ggplot(df, aes(x = Condition, fill = match, alpha = match_alpha)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = percent_format()) +
+  scale_alpha_manual(values = c("Transparent" = 0.4, "Opaque" = 1)) +
+    scale_fill_manual(values = c("Match" = "forestgreen", 
+                               "Partial Match" = "steelblue", 
+                               "No Match" = "lightcoral")) +
+  labs(title = "Match Type by Condition", x = NULL, y = "Proportion") +
+  theme_minimal() +
+  theme(panel.grid = element_blank()) +
+  guides(alpha = "none", fill = "none")  # Remove legends
+
+# ---- Plot 2: Organ ----
+p2 <- ggplot(df, aes(x = Organ, fill = match, alpha = match_alpha)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = percent_format()) +
+  scale_alpha_manual(values = c("Transparent" = 0.4, "Opaque" = 1)) +
+    scale_fill_manual(values = c("Match" = "forestgreen", 
+                               "Partial Match" = "steelblue", 
+                               "No Match" = "lightcoral")) +
+  labs(title = "Match Type by Organ", x = NULL, y = "Proportion") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.grid = element_blank()) +
+  guides(alpha = "none")  # Keep fill legend
+
+# ---- Plot 3: Query ----
+p3 <- ggplot(df, aes(x = Query, fill = match, alpha = match_alpha)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = percent_format()) +
+  scale_alpha_manual(values = c("Transparent" = 0.4, "Opaque" = 1)) +
+    scale_fill_manual(values = c("Match" = "forestgreen", 
+                               "Partial Match" = "steelblue", 
+                               "No Match" = "lightcoral")) +
+  labs(title = "Match Type by Query Status", x = NULL, y = "Proportion") +
+  theme_minimal() +
+  theme(panel.grid = element_blank()) +
+  guides(alpha = "none", fill = "none")  # Remove legends
+
+# ---- Combine plots ----
+plt <- (p1 / p2 / p3)
+
+ggsave("../plots/overall_results_stacked_bar.png", plot = plt, width = 8, height = 6, dpi = 300)
+
+plt
+```
+
+## Accuracy
+
+```{r}
+
+# Load local functions
+source("../../src_gustav/cell_typing_functions.R")
+
+compute_match_accuracy(df)
+```
+
+## Statistical tests on the distribution of match
+
+```{r}
+library(tidyverse)
+
+
+
+# STEP 1: Recode to binary (Match vs. others)
+df <- df %>%
+  mutate(
+    match_binary = ifelse(match == "Match", 1, 0)
+  )
+
+# ==== 1. CHI-SQUARE TEST OF INDEPENDENCE ====
+cat("==== Chi-Square Test ====\n")
+table_cond <- table(df$Condition, df$match)
+chi_result <- chisq.test(table_cond)
+print(chi_result)
+
+# ==== 2. LOGISTIC REGRESSION ====
+cat("\n==== Logistic Regression (Match vs Not) ====\n")
+logit_model <- glm(match_binary ~ Condition, data = df, family = "binomial")
+summary(logit_model)
+
+# Optional: Show odds ratios
+cat("\nOdds Ratios:\n")
+exp(coef(logit_model))
+
+# ==== 3. PAIRWISE PROPORTION TESTS ====
+cat("\n==== Pairwise Proportion Tests (Match only) ====\n")
+tab <- table(df$match_binary, df$Condition)
+pairwise_result <- pairwise.prop.test(tab[2, ], colSums(tab), p.adjust.method = "holm")
+print(pairwise_result)
+
+# ==== SUMMARY OF FINDINGS ====
+cat("\n==== Summary ====\n")
+cat("1. Chi-square test p-value:", signif(chi_result$p.value, 4), "\n")
+cat("   → Match type distribution differs significantly across conditions.\n")
+
+logit_summary <- summary(logit_model)$coefficients
+cat("2. Logistic regression:\n")
+cat("   - Group vs All p-value:", signif(logit_summary["ConditionGroup", "Pr(>|z|)"], 4), "\n")
+cat("   - Organ vs All p-value:", signif(logit_summary["ConditionOrgan", "Pr(>|z|)"], 4), "\n")
+cat("   → Group condition has significantly lower match odds than All.\n")
+
+cat("3. Pairwise comparisons (adjusted p-values):\n")
+print(pairwise_result$p.value)
+
+cat("   → All vs Group is significantly different.\n")
+
+```
+
+### Chi squared tests on each organ iteratively. To acess whether the match is differently distrbuted between the three conditions.
+
+```{r}
+library(tidyverse)
+
+# Step 1: Create binary column for Match only
+df <- df %>%
+  mutate(match_binary = ifelse(match == "Match", 1, 0))
+
+# Step 2: Get unique organs
+organs <- unique(df$Organ)
+
+# Step 3: Prepare list to store results
+chi_results <- list()
+
+# Step 4: Loop through each organ
+for (org in organs) {
+  df_org <- df %>% filter(Organ == org)
+
+  # Create contingency table: Match (1/0) vs Condition
+  tab <- table(df_org$match_binary, df_org$Condition)
+
+  # Only run test if table has correct dimensions
+  if (nrow(tab) == 2 && ncol(tab) >= 2 && all(colSums(tab) > 0)) {
+    chi_test <- tryCatch(chisq.test(tab), error = function(e) NULL)
+
+    if (!is.null(chi_test)) {
+      chi_results[[org]] <- tibble(
+        Organ = org,
+        P_Value = chi_test$p.value,
+        X_Squared = chi_test$statistic,
+        df = chi_test$parameter,
+        Note = ifelse(chi_test$p.value < 0.05, "Significant", "Not Significant")
+      )
+    } else {
+      chi_results[[org]] <- tibble(Organ = org, P_Value = NA, X_Squared = NA, df = NA, Note = "Test error")
+    }
+
+  } else {
+    chi_results[[org]] <- tibble(Organ = org, P_Value = NA, X_Squared = NA, df = NA, Note = "Insufficient data")
+  }
+}
+
+# Step 5: Combine and show results
+final_chi_results <- bind_rows(chi_results)
+print(final_chi_results)
+
+```
+
+```{r}
+library(tidyverse)
+
+# Ensure binary column is present
+df <- df %>%
+  mutate(match_binary = ifelse(match == "Match", 1, 0))
+
+# Unique organs
+organs <- unique(df$Organ)
+logit_results <- list()
+
+for (org in organs) {
+  df_org <- df %>% filter(Organ == org)
+
+  # Only run if at least 2 conditions and both outcome classes are present
+  if (n_distinct(df_org$Condition) >= 2 && length(unique(df_org$match_binary)) > 1) {
+    
+    # Try logistic regression
+    model <- tryCatch(
+      glm(match_binary ~ Condition, data = df_org, family = "binomial"),
+      error = function(e) NULL
+    )
+
+    if (!is.null(model)) {
+      coefs <- summary(model)$coefficients
+      
+      # Extract p-values if available
+      p_group <- coefs["ConditionGroup", "Pr(>|z|)"] %||% NA
+      p_organ <- coefs["ConditionOrgan", "Pr(>|z|)"] %||% NA
+      
+      logit_results[[org]] <- tibble(
+        Organ = org,
+        Logit_p_Group = p_group,
+        Logit_p_Organ = p_organ,
+        OR_Group = exp(coef(model)["ConditionGroup"]) %||% NA,
+        OR_Organ = exp(coef(model)["ConditionOrgan"]) %||% NA,
+        Note = "OK"
+      )
+    } else {
+      logit_results[[org]] <- tibble(Organ = org, Logit_p_Group = NA, Logit_p_Organ = NA,
+                                     OR_Group = NA, OR_Organ = NA, Note = "Model failed")
+    }
+
+  } else {
+    logit_results[[org]] <- tibble(Organ = org, Logit_p_Group = NA, Logit_p_Organ = NA,
+                                   OR_Group = NA, OR_Organ = NA, Note = "Insufficient data")
+  }
+}
+
+# Combine and print results
+final_logit <- bind_rows(logit_results)
+print(final_logit)
+
+```
+
+
+### Query vs No Query statstical tests.
+
+```{r}
+
+library(tidyverse)
+
+# Recode outcome and predictor
+df <- df %>%
+  mutate(
+    match_binary = ifelse(match == "Match", 1, 0),
+    Query = factor(Query, levels = c("noquery", "query"))  # "noquery" is reference
+  )
+
+# ---- 1. Chi-Square Test ----
+cat("=== Chi-Square Test ===\n")
+query_tab <- table(df$match, df$Query)
+chi_test <- chisq.test(query_tab)
+print(chi_test)
+
+# ---- 2. Logistic Regression ----
+cat("\n=== Logistic Regression (Match vs Not) ===\n")
+logit_model <- glm(match_binary ~ Query, data = df, family = "binomial")
+summary(logit_model)
+
+# Odds ratio
+cat("\nOdds Ratio:\n")
+exp(coef(logit_model))
+
+# ---- 3. Proportion Test ----
+cat("\n=== Proportion Test ===\n")
+prop_tab <- table(df$match_binary, df$Query)
+prop_test <- prop.test(prop_tab[2, ], colSums(prop_tab))  # Row 2 = exact matches
+print(prop_test)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
