@@ -1,0 +1,80 @@
+---
+title: "tabula"
+output: html_document
+---
+
+```{r}
+# ── Load libraries ─────────────────────────────────────────────────────────────
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(SeuratData)
+
+
+pancreas.obj <- LoadData("panc8")
+
+# ── Read in your Seurat object ────────────────────────────────────────────────
+obj <- readRDS("C:/Users/hostp/Desktop/data/tabula/tabula_RDS/tabula_preproccesed.rds")
+
+
+```
+
+```{r}
+# ── Basic dimensions ──────────────────────────────────────────────────────────
+cat("Number of cells:", ncol(obj), "\n")
+cat("Number of features (genes):", nrow(obj), "\n\n")
+
+# ── Metadata overview ─────────────────────────────────────────────────────────
+cat("Metadata columns:\n")
+print(colnames(obj@meta.data))
+
+# ── Unique organs/tissues if available ────────────────────────────────────────
+if ("organ" %in% colnames(obj@meta.data)) {
+  organs <- unique(obj@meta.data$organ)
+  cat("\nNumber of unique organs:", length(organs), "\n")
+  print(organs)
+  
+  cat("\nCell count per organ:\n")
+  print(table(obj@meta.data$organ))
+}
+
+print("Nr of different organso")
+print(length(unique(obj$Organ)))
+
+# ── Cell types summary ────────────────────────────────────────────────────────
+# Replace "cell_type" with the correct metadata column name if needed
+celltype_col <- "cell_type"  # adjust this if your data uses a different name
+if (celltype_col %in% colnames(obj@meta.data)) {
+  cat("\nNumber of unique cell types:", length(unique(obj@meta.data[[celltype_col]])), "\n")
+  print(table(obj@meta.data[[celltype_col]]))
+}
+
+#Organ specific celltypes
+
+print("Number of organ specific celltypes:")
+print(length(unique(obj$Organ_Celltype)))
+
+# ── Cluster summary if clusters exist ─────────────────────────────────────────
+if ("seurat_clusters" %in% colnames(obj@meta.data)) {
+  cat("\nNumber of Seurat clusters:", length(unique(obj@meta.data$seurat_clusters)), "\n")
+  print(table(obj@meta.data$seurat_clusters))
+}
+
+# ── Assays and their types ────────────────────────────────────────────────────
+#cat("\nAssay(s) in object:\n")
+#print(Assays(obj))
+#
+## ── Check default assay ───────────────────────────────────────────────────────
+#cat("\nDefault assay:", DefaultAssay(obj), "\n")
+#
+## ── Sample of feature names ───────────────────────────────────────────────────
+#cat("\nExample features:\n")
+#print(head(rownames(obj), 10))
+#
+## ── Sample of cell barcodes ───────────────────────────────────────────────────
+#cat("\nExample cell barcodes:\n")
+#print(head(colnames(obj), 10))
+
+```
+

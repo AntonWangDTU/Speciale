@@ -38,7 +38,7 @@ source("functions.R")
 
 ```{r}
 # Load data
-obj <- readRDS("data_tabula_sapiens/tabula_preproccesed.rds")
+obj <- readRDS("C:/Users/hostp/Desktop/data/tabula/tabula_RDS/tabula_preproccesed.rds")
 
 # Rename cols and create organ_celltype column
 obj@meta.data <- obj@meta.data %>%
@@ -119,6 +119,66 @@ obj$Organ_Celltype = paste(obj$Organ, obj$Celltype, sep = "_")
 Idents(obj) <- "Organ_Celltype"
 ```
 
+```{r}
+######## MAIN LOOP ######### 
+
+# Create output directories if not exist
+if (!dir.exists(MARKER_LOG_DIR)) dir.create(MARKER_LOG_DIR)
+
+data_all <- obj
+
+predictions_list <- list()
+i <- 1
+n_iterations <- length(unique(data_all$Organ_Celltype))
+
+start_time <- Sys.time()
+
+completed_runs <- list.files(MARKER_LOG_DIR, pattern = "_markers.csv") %>%
+  str_remove("_markers.csv")
+
+cat("Starting prediction loop...\n")
+cat("Total iterations expected:", n_iterations, "\n\n")
+
+for (group in unique(data_all$Organ_Group)) {
+  data_group <- subset(data_all, Organ_Group == group)
+  
+  for (organ in unique(data_all$Organ[data_all$Organ_Group == group])) {
+    data_organ <- subset(data_group, Organ == organ) 
+    
+    for (cell_type in unique(data_all$Celltype[data_all$Organ == organ])) {
+      
+      combo_name <- paste(group, organ, cell_type, sep = "_")
+      
+      if (combo_name %in% completed_runs) {
+        message(sprintf("✅ Skipping already processed: %s", combo_name))
+        i <- i + 1
+        next
+      }
+      
+      iter_start <- Sys.time()
+      
+      cat(sprintf("[%d/%d] Running: Group = %s | Organ = %s | Celltype = %s\n", 
+                  i, n_iterations, group, organ, cell_type))
+      
+      pred <- run_prediction_for_celltype(data_all, data_group, data_organ, group, organ, cell_type)
+      
+      
+      write_csv(pred, PREDICTION_LOG_FILE, append = file.exists(PREDICTION_LOG_FILE))
+      
+      # Clean up temp dirs to not chrash
+      cleanup_tmp_files()
+      
+      iter_end <- Sys.time()
+      duration <- round(as.numeric(difftime(iter_end, iter_start, units = "secs")), 2)
+      cat(sprintf("  ⏱️ Iteration time: %.2f sec | Total elapsed: %.2f sec\n\n", 
+                  duration, as.numeric(difftime(iter_end, start_time, units = "secs"))))
+      
+      i <- i + 1
+      
+    }
+  }
+}
+```
 
 
 

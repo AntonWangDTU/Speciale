@@ -3,6 +3,9 @@ title: "cao_in_pbmc3k_pipline"
 output: html_document
 date: "2025-04-01"
 ---
+```{r}
+
+```
 
 ```{r}
 # ── Load libraries ─────────────────────────────────────────────────────────────
@@ -10,17 +13,20 @@ library(Seurat)
 library(ggplot2)
 library(dplyr)
 library(tibble)
+library(SeuratData)
+
+
+pancreas.obj <- LoadData("panc8")
 
 # ── Read in your Seurat object ────────────────────────────────────────────────
 obj <- readRDS("C:/Users/hostp/Desktop/data/tabula/tabula_RDS/tabula_preproccesed.rds")
 
 # ── Inspect metadata to find the correct column name ──────────────────────────
-head(obj@meta.data)
+#head(obj@meta.data)
 # e.g., you might see a column called "organ" or "tissue"
-
+pancreas.obj <- subset(obj, subset = organ == "Pancreas")
 # ── Subset to pancreas cells ──────────────────────────────────────────────────
 # Replace 'organ' with your actual metadata column name, and adjust the value if needed.
-pancreas.obj <- subset(obj, subset = organ == "Pancreas")
 
 # ── (Re)run the standard Seurat workflow on just pancreas ─────────────────────
 pancreas.obj <- NormalizeData(pancreas.obj)
@@ -31,22 +37,35 @@ pancreas.obj <- FindNeighbors(pancreas.obj, dims = 1:10)
 pancreas.obj <- FindClusters(pancreas.obj, resolution = 0.5)
 pancreas.obj <- RunUMAP(pancreas.obj, dims = 1:10)
 
-# ── Prepare UMAP coordinates + cell names ─────────────────────────────────────
-umap_df <- Embeddings(pancreas.obj, "umap") %>%
-  as.data.frame() %>%
-  rownames_to_column("cell") %>%
-  mutate(cluster = Idents(pancreas.obj)[cell])
+# ── 4) Pull out and rename UMAP embeddings ─────────────────────────────────────
 
-# ── Plot UMAP with each cell name annotated ───────────────────────────────────
-ggplot(umap_df, aes(x = UMAP_1, y = UMAP_2)) +
-  geom_point(aes(color = cluster), size = 0.5) +
-  geom_text(aes(label = cell), 
-            size = 1.2, 
-            check_overlap = TRUE) +
-  theme_minimal() +
-  labs(color = "Cluster") +
-  ggtitle("UMAP of Pancreas Cells with Cell Names")
 
+
+DimPlot(pancreas.obj, reduction = "umap")
 
 ```
+
+```{r}
+Idents(pancreas.obj) <- "celltype"
+
+DimPlot(pancreas.obj, reduction = "umap", label = TRUE )
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
