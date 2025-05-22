@@ -1,0 +1,470 @@
+Digestive_Liver_macrophage
+Digestive_Liver_monocyte
+Digestive_Liver_endothelial cell of hepatic sinusoid
+Digestive_Liver_liver dendritic cell
+Digestive_Liver_nk cell
+Digestive_Liver_fibroblast
+Digestive_Liver_hepatocyte
+Digestive_Liver_intrahepatic cholangiocyte
+Digestive_Liver_t cell
+Digestive_Liver_neutrophil
+Digestive_Liver_plasma cell
+RespiratoryImmune_Trachea_macrophage
+RespiratoryImmune_Trachea_tracheal goblet cell
+RespiratoryImmune_Trachea_fibroblast
+RespiratoryImmune_Trachea_endothelial cell
+RespiratoryImmune_Trachea_smooth muscle cell
+RespiratoryImmune_Trachea_ciliated cell
+RespiratoryImmune_Trachea_ionocyte
+RespiratoryImmune_Trachea_secretory cell
+RespiratoryImmune_Trachea_t cell
+RespiratoryImmune_Trachea_basal cell
+RespiratoryImmune_Trachea_mast cell
+RespiratoryImmune_Trachea_mucus secreting cell
+RespiratoryImmune_Trachea_plasma cell
+RespiratoryImmune_Trachea_cd8-positive, alpha-beta t cell
+RespiratoryImmune_Trachea_serous cell of epithelium of trachea
+RespiratoryImmune_Trachea_b cell
+RespiratoryImmune_Trachea_cd4-positive, alpha-beta t cell
+RespiratoryImmune_Trachea_neutrophil
+RespiratoryImmune_Trachea_double-positive, alpha-beta thymocyte
+RespiratoryImmune_Blood_erythrocyte
+RespiratoryImmune_Blood_cd4-positive, alpha-beta memory t cell
+RespiratoryImmune_Blood_cd8-positive, alpha-beta cytokine secreting effector t cell
+RespiratoryImmune_Blood_classical monocyte
+RespiratoryImmune_Blood_neutrophil
+RespiratoryImmune_Blood_naive b cell
+RespiratoryImmune_Blood_nk cell
+RespiratoryImmune_Blood_memory b cell
+RespiratoryImmune_Blood_type i nk t cell
+RespiratoryImmune_Blood_cd141-positive myeloid dendritic cell
+RespiratoryImmune_Blood_cd8-positive, alpha-beta t cell
+RespiratoryImmune_Blood_plasma cell
+RespiratoryImmune_Blood_alpha-beta t cell
+RespiratoryImmune_Blood_platelet
+RespiratoryImmune_Blood_naive thymus-derived cd4-positive, alpha-beta t cell
+RespiratoryImmune_Blood_non-classical monocyte
+RespiratoryImmune_Blood_hematopoietic stem cell
+RespiratoryImmune_Blood_plasmacytoid dendritic cell
+RespiratoryImmune_Blood_basophil
+NA_Lymph Node_b cell
+NA_Lymph Node_cd8-positive alpha-beta t cell
+NA_Lymph Node_t cell
+NA_Lymph Node_type i nk t cell
+NA_Lymph Node_cd4-positive alpha-beta t cell
+NA_Lymph Node_innate lymphoid cell
+NA_Lymph Node_regulatory t cell
+NA_Lymph Node_plasma cell
+NA_Lymph Node_neutrophil
+NA_Lymph Node_classical monocyte
+NA_Lymph Node_nk cell
+NA_Lymph Node_macrophage
+NA_Lymph Node_endothelial cell
+NA_Lymph Node_cd141-positive myeloid dendritic cell
+NA_Lymph Node_cd1c-positive myeloid dendritic cell
+NA_Lymph Node_intermediate monocyte
+NA_Lymph Node_hematopoietic stem cell
+NA_Lymph Node_non-classical monocyte
+NA_Lymph Node_mast cell
+NA_Lymph Node_plasmacytoid dendritic cell
+NA_Lymph Node_stromal cell
+NA_Lymph Node_erythrocyte
+NA_Salivary Gland_acinar cell of salivary gland
+NA_Salivary Gland_naive b cell
+NA_Salivary Gland_memory b cell
+NA_Salivary Gland_cd4-positive helper t cell
+NA_Salivary Gland_pericyte cell
+NA_Salivary Gland_nk cell
+NA_Salivary Gland_fibroblast
+NA_Salivary Gland_endothelial cell of lymphatic vessel
+NA_Salivary Gland_adventitial cell
+NA_Salivary Gland_b cell
+NA_Salivary Gland_endothelial cell
+NA_Salivary Gland_monocyte
+NA_Salivary Gland_plasma cell
+NA_Salivary Gland_duct epithelial cell
+NA_Salivary Gland_basal cell
+NA_Salivary Gland_cd8-positive, alpha-beta t cell
+NA_Salivary Gland_neutrophil
+NA_Salivary Gland_t cell
+NA_Salivary Gland_myoepithelial cell
+RespiratoryImmune_Spleen_cd8-positive, alpha-beta memory t cell
+RespiratoryImmune_Spleen_macrophage
+RespiratoryImmune_Spleen_naive thymus-derived cd4-positive, alpha-beta t cell
+RespiratoryImmune_Spleen_intermediate monocyte
+RespiratoryImmune_Spleen_endothelial cell
+RespiratoryImmune_Spleen_memory b cell
+RespiratoryImmune_Spleen_classical monocyte
+RespiratoryImmune_Spleen_neutrophil
+RespiratoryImmune_Spleen_naive b cell
+RespiratoryImmune_Spleen_plasma cell
+RespiratoryImmune_Spleen_cd4-positive, alpha-beta memory t cell
+RespiratoryImmune_Spleen_type i nk t cell
+RespiratoryImmune_Spleen_naive thymus-derived cd8-positive, alpha-beta t cell
+RespiratoryImmune_Spleen_nk cell
+RespiratoryImmune_Spleen_innate lymphoid cell
+RespiratoryImmune_Spleen_erythrocyte
+RespiratoryImmune_Spleen_regulatory t cell
+RespiratoryImmune_Spleen_platelet
+RespiratoryImmune_Spleen_hematopoietic stem cell
+RespiratoryImmune_Spleen_cd141-positive myeloid dendritic cell
+RespiratoryImmune_Spleen_cd1c-positive myeloid dendritic cell
+Digestive_Tongue_epithelial cell
+Digestive_Tongue_basal cell
+Digestive_Tongue_immune cell
+Digestive_Tongue_fibroblast
+Digestive_Tongue_vein endothelial cell
+Digestive_Tongue_pericyte cell
+Digestive_Tongue_endothelial cell of lymphatic vessel
+Digestive_Tongue_endothelial cell of artery
+Digestive_Tongue_capillary endothelial cell
+Digestive_Tongue_tongue muscle cell
+Digestive_Tongue_keratinocyte
+ReproductiveEndocrine_Mammary_fibroblast of breast
+ReproductiveEndocrine_Mammary_t cell
+ReproductiveEndocrine_Mammary_luminal epithelial cell of mammary gland
+ReproductiveEndocrine_Mammary_macrophage
+ReproductiveEndocrine_Mammary_pericyte cell
+ReproductiveEndocrine_Mammary_vascular associated smooth muscle cell
+ReproductiveEndocrine_Mammary_b cell
+ReproductiveEndocrine_Mammary_vein endothelial cell
+ReproductiveEndocrine_Mammary_basal cell
+ReproductiveEndocrine_Mammary_plasma cell
+ReproductiveEndocrine_Mammary_endothelial cell of artery
+ReproductiveEndocrine_Mammary_endothelial cell of lymphatic vessel
+ReproductiveEndocrine_Mammary_nk cell
+ReproductiveEndocrine_Mammary_mast cell
+ReproductiveEndocrine_Uterus_t cell
+ReproductiveEndocrine_Uterus_fibroblast
+ReproductiveEndocrine_Uterus_macrophage
+ReproductiveEndocrine_Uterus_immune cell
+ReproductiveEndocrine_Uterus_pericyte cell
+ReproductiveEndocrine_Uterus_epithelial cell of uterus
+ReproductiveEndocrine_Uterus_endothelial cell
+ReproductiveEndocrine_Uterus_epithelial cell
+ReproductiveEndocrine_Uterus_ciliated epithelial cell
+ReproductiveEndocrine_Uterus_endothelial cell of lymphatic vessel
+ReproductiveEndocrine_Uterus_myometrial cell
+ReproductiveEndocrine_Uterus_nk cell
+ReproductiveEndocrine_Uterus_b cell
+ReproductiveEndocrine_Uterus_vascular associated smooth muscle cell
+NeuralSensory_Eye_conjunctival epithelial cell
+NeuralSensory_Eye_monocyte
+NeuralSensory_Eye_microglial cell
+NeuralSensory_Eye_eye photoreceptor cell
+NeuralSensory_Eye_muller cell
+NeuralSensory_Eye_fibroblast
+NeuralSensory_Eye_t cell
+NeuralSensory_Eye_limbal stem cell
+NeuralSensory_Eye_retinal blood vessel endothelial cell
+NeuralSensory_Eye_epithelial cell of lacrimal sac
+NeuralSensory_Eye_corneal keratocyte
+NeuralSensory_Eye_b cell
+NeuralSensory_Eye_retinal pigment epithelial cell
+NeuralSensory_Eye_corneal epithelial cell
+NeuralSensory_Eye_limbal stromal cell
+NeuralSensory_Eye_retinal bipolar neuron
+NeuralSensory_Eye_dendritic cell
+NeuralSensory_Eye_plasma cell
+NeuralSensory_Eye_lacrimal gland functional unit cell
+NeuralSensory_Eye_melanocyte
+NeuralSensory_Eye_macrophage
+NeuralSensory_Eye_radial glial cell
+NeuralSensory_Eye_ocular surface cell
+NeuralSensory_Eye_cd8-positive, alpha-beta t cell
+NeuralSensory_Eye_endothelial cell
+NeuralSensory_Eye_retina horizontal cell
+NeuralSensory_Eye_erythroid lineage cell
+NeuralSensory_Eye_ciliary body
+NeuralSensory_Eye_cd4-positive, alpha-beta t cell
+NeuralSensory_Eye_mast cell
+Musculoskeletal_Fat_fibroblast
+Musculoskeletal_Fat_endothelial cell
+Musculoskeletal_Fat_t cell
+Musculoskeletal_Fat_macrophage
+Musculoskeletal_Fat_nk cell
+Musculoskeletal_Fat_myofibroblast cell
+Musculoskeletal_Fat_leucocyte
+Musculoskeletal_Fat_plasma cell
+Musculoskeletal_Fat_mesenchymal stem cell
+Musculoskeletal_Fat_smooth muscle cell
+Musculoskeletal_Fat_neutrophil
+Musculoskeletal_Fat_mast cell
+Musculoskeletal_Skin_macrophage
+Musculoskeletal_Skin_stromal cell
+Musculoskeletal_Skin_cd8-positive, alpha-beta memory t cell
+Musculoskeletal_Skin_cd141-positive myeloid dendritic cell
+Musculoskeletal_Skin_t cell
+Musculoskeletal_Skin_nkt cell
+Musculoskeletal_Skin_mast cell
+Musculoskeletal_Skin_muscle cell
+Musculoskeletal_Skin_cd8-positive, alpha-beta cytotoxic t cell
+Musculoskeletal_Skin_cd1c-positive myeloid dendritic cell
+Musculoskeletal_Skin_endothelial cell
+Musculoskeletal_Skin_cd4-positive, alpha-beta memory t cell
+Musculoskeletal_Skin_nk cell
+Musculoskeletal_Skin_naive thymus-derived cd8-positive, alpha-beta t cell
+Musculoskeletal_Skin_naive thymus-derived cd4-positive, alpha-beta t cell
+Musculoskeletal_Skin_melanocyte
+Musculoskeletal_Skin_regulatory t cell
+Musculoskeletal_Skin_epithelial cell
+Musculoskeletal_Skin_plasma cell
+Musculoskeletal_Skin_cd4-positive helper t cells
+Musculoskeletal_Skin_memory b cell
+Musculoskeletal_Skin_langerhans cell
+Musculoskeletal_Skin_naive b cell
+NA_Bone Marrow_monocyte
+NA_Bone Marrow_plasma cell
+NA_Bone Marrow_hematopoietic stem cell
+NA_Bone Marrow_erythroid progenitor
+NA_Bone Marrow_nk cell
+NA_Bone Marrow_granulocyte
+NA_Bone Marrow_naive b cell
+NA_Bone Marrow_macrophage
+NA_Bone Marrow_myeloid progenitor
+NA_Bone Marrow_memory b cell
+NA_Bone Marrow_cd8-positive, alpha-beta t cell
+NA_Bone Marrow_cd4-positive, alpha-beta t cell
+NA_Bone Marrow_nampt neutrophil
+NA_Bone Marrow_cd24 neutrophil
+UroCardiac_Heart_cardiac endothelial cell
+UroCardiac_Heart_cardiac muscle cell
+UroCardiac_Heart_hepatocyte
+UroCardiac_Heart_smooth muscle cell
+UroCardiac_Heart_fibroblast of cardiac tissue
+UroCardiac_Heart_macrophage
+Digestive_Pancreas_pancreatic acinar cell
+Digestive_Pancreas_t cell
+Digestive_Pancreas_endothelial cell
+Digestive_Pancreas_myeloid cell
+Digestive_Pancreas_pancreatic stellate cell
+Digestive_Pancreas_nk cell
+Digestive_Pancreas_fibroblast
+Digestive_Pancreas_b cell
+Digestive_Pancreas_pancreatic ductal cell
+Digestive_Pancreas_plasma cell
+Digestive_Pancreas_pancreatic beta cell
+Digestive_Pancreas_mast cell
+ReproductiveEndocrine_Prostate_basal cell of prostate epithelium
+ReproductiveEndocrine_Prostate_epithelial cell
+ReproductiveEndocrine_Prostate_fibroblast
+ReproductiveEndocrine_Prostate_hillock-club cell of prostate epithelium
+ReproductiveEndocrine_Prostate_macrophage
+ReproductiveEndocrine_Prostate_nkt cell
+ReproductiveEndocrine_Prostate_erythroid progenitor
+ReproductiveEndocrine_Prostate_cd8-positive, alpha-beta t cell
+ReproductiveEndocrine_Prostate_cd8b-positive nk t cell
+ReproductiveEndocrine_Prostate_luminal cell of prostate epithelium
+ReproductiveEndocrine_Prostate_endothelial cell
+ReproductiveEndocrine_Prostate_smooth muscle cell
+NA_Bone Marrow_neutrophil
+NA_Bone Marrow_erythrocyte
+Digestive_Liver_endothelial cell
+Digestive_Liver_erythrocyte
+NA_Lymph Node_mature conventional dendritic cell
+NA_Salivary Gland_macrophage
+NA_Salivary Gland_salivary gland cell
+NA_Salivary Gland_ionocyte
+RespiratoryImmune_Spleen_plasmacytoid dendritic cell
+RespiratoryImmune_Thymus_cd4-positive helper t cell
+RespiratoryImmune_Thymus_naive regulatory t cell
+RespiratoryImmune_Thymus_t follicular helper cell
+RespiratoryImmune_Thymus_cd8-positive, alpha-beta cytotoxic t cell
+RespiratoryImmune_Thymus_dn4 thymocyte
+RespiratoryImmune_Thymus_b cell
+RespiratoryImmune_Thymus_fibroblast
+RespiratoryImmune_Thymus_macrophage
+RespiratoryImmune_Thymus_vascular associated smooth muscle cell
+RespiratoryImmune_Thymus_plasma cell
+RespiratoryImmune_Thymus_vein endothelial cell
+RespiratoryImmune_Thymus_capillary endothelial cell
+RespiratoryImmune_Thymus_endothelial cell of artery
+RespiratoryImmune_Thymus_medullary thymic epithelial cell
+RespiratoryImmune_Thymus_nk cell
+RespiratoryImmune_Thymus_erythrocyte
+RespiratoryImmune_Thymus_monocyte
+RespiratoryImmune_Thymus_endothelial cell of lymphatic vessel
+RespiratoryImmune_Thymus_myeloid dendritic cell
+NeuralSensory_Eye_adipocyte
+NeuralSensory_Eye_retinal ganglion cell
+NA_Large Intestine_cd4-positive, alpha-beta t cell
+NA_Large Intestine_enterocyte of epithelium of large intestine
+NA_Large Intestine_monocyte
+NA_Large Intestine_plasma cell
+NA_Large Intestine_cd8-positive, alpha-beta t cell
+NA_Large Intestine_fibroblast
+NA_Large Intestine_large intestine goblet cell
+NA_Large Intestine_paneth cell of epithelium of large intestine
+NA_Large Intestine_b cell
+NA_Large Intestine_transit amplifying cell of large intestine
+NA_Large Intestine_mast cell
+NA_Large Intestine_gut endothelial cell
+NA_Large Intestine_intestinal crypt stem cell of large intestine
+NA_Large Intestine_intestinal enteroendocrine cell
+NA_Large Intestine_neutrophil
+NA_Large Intestine_intestinal tuft cell
+RespiratoryImmune_Lung_type ii pneumocyte
+RespiratoryImmune_Lung_neutrophil
+RespiratoryImmune_Lung_cd4-positive alpha-beta t cell
+RespiratoryImmune_Lung_cd8-positive alpha-beta t cell
+RespiratoryImmune_Lung_nk cell
+RespiratoryImmune_Lung_bronchial vessel endothelial cell
+RespiratoryImmune_Lung_smooth muscle cell
+RespiratoryImmune_Lung_adventitial cell
+RespiratoryImmune_Lung_macrophage
+RespiratoryImmune_Lung_respiratory mucous cell
+ReproductiveEndocrine_Prostate_t cell
+ReproductiveEndocrine_Prostate_club cell of prostate epithelium
+ReproductiveEndocrine_Prostate_neutrophil
+ReproductiveEndocrine_Prostate_myeloid cell
+ReproductiveEndocrine_Prostate_hillock cell of prostate epithelium
+ReproductiveEndocrine_Prostate_sperm
+ReproductiveEndocrine_Prostate_mast cell
+NA_Small Intestine_cd4-positive, alpha-beta t cell
+NA_Small Intestine_enterocyte of epithelium of small intestine
+NA_Small Intestine_neutrophil
+NA_Small Intestine_transit amplifying cell of small intestine
+NA_Small Intestine_small intestine goblet cell
+NA_Small Intestine_cd8-positive, alpha-beta t cell
+NA_Small Intestine_b cell
+NA_Small Intestine_monocyte
+NA_Small Intestine_paneth cell of epithelium of small intestine
+NA_Small Intestine_intestinal tuft cell
+NA_Small Intestine_plasma cell
+NA_Small Intestine_mast cell
+NA_Small Intestine_fibroblast
+NA_Small Intestine_intestinal enteroendocrine cell
+NA_Small Intestine_gut endothelial cell
+NA_Small Intestine_intestinal crypt stem cell of small intestine
+Musculoskeletal_Skin_smooth muscle cell
+Musculoskeletal_Skin_cell of skeletal muscle
+RespiratoryImmune_Thymus_dn3 thymocyte
+RespiratoryImmune_Thymus_dn1 thymic pro-t cell
+RespiratoryImmune_Thymus_innate lymphoid cell
+Digestive_Tongue_schwann cell
+Musculoskeletal_Muscle_mesenchymal stem cell
+Musculoskeletal_Muscle_skeletal muscle satellite stem cell
+Musculoskeletal_Muscle_smooth muscle cell
+Musculoskeletal_Muscle_capillary endothelial cell
+Musculoskeletal_Muscle_pericyte cell
+Musculoskeletal_Muscle_fast muscle cell
+Musculoskeletal_Muscle_macrophage
+Musculoskeletal_Muscle_endothelial cell of vascular tree
+Musculoskeletal_Muscle_cd4-positive, alpha-beta t cell
+Musculoskeletal_Muscle_cd8-positive, alpha-beta t cell
+Musculoskeletal_Muscle_slow muscle cell
+Musculoskeletal_Muscle_endothelial cell of artery
+Musculoskeletal_Muscle_tendon cell
+Musculoskeletal_Muscle_mature nk t cell
+Musculoskeletal_Muscle_t cell
+Musculoskeletal_Muscle_endothelial cell of lymphatic vessel
+Musculoskeletal_Muscle_mast cell
+Musculoskeletal_Muscle_erythrocyte
+Musculoskeletal_Muscle_mesothelial cell
+UroCardiac_Vasculature_fibroblast
+UroCardiac_Vasculature_macrophage
+UroCardiac_Vasculature_smooth muscle cell
+UroCardiac_Vasculature_pericyte cell
+UroCardiac_Vasculature_vein or capillary endothelial cell
+UroCardiac_Vasculature_artery endothelial cell
+UroCardiac_Vasculature_t cell
+UroCardiac_Vasculature_mast cell
+UroCardiac_Vasculature_erythrocyte
+UroCardiac_Vasculature_b cell
+UroCardiac_Vasculature_nk cell
+UroCardiac_Vasculature_plasma cell
+UroCardiac_Vasculature_lymphatic endothelial cells
+UroCardiac_Vasculature_endothelial cell
+UroCardiac_Bladder_macrophage
+UroCardiac_Bladder_fibroblast
+UroCardiac_Bladder_t cell
+UroCardiac_Bladder_bladder urothelial cell
+UroCardiac_Bladder_plasma cell
+UroCardiac_Bladder_smooth muscle cell
+UroCardiac_Bladder_myofibroblast cell
+UroCardiac_Bladder_capillary endothelial cell
+UroCardiac_Bladder_vein endothelial cell
+UroCardiac_Bladder_pericyte cell
+UroCardiac_Bladder_mast cell
+UroCardiac_Bladder_plasmacytoid dendritic cell
+UroCardiac_Bladder_endothelial cell of lymphatic vessel
+UroCardiac_Bladder_nk cell
+UroCardiac_Bladder_b cell
+RespiratoryImmune_Blood_cd4-positive, alpha-beta t cell
+RespiratoryImmune_Blood_monocyte
+RespiratoryImmune_Blood_plasmablast
+RespiratoryImmune_Blood_cd24 neutrophil
+RespiratoryImmune_Blood_nampt neutrophil
+RespiratoryImmune_Blood_myeloid progenitor
+RespiratoryImmune_Blood_macrophage
+RespiratoryImmune_Blood_granulocyte
+UroCardiac_Kidney_kidney epithelial cell
+UroCardiac_Kidney_b cell
+UroCardiac_Kidney_cd8-positive, alpha-beta t cell
+UroCardiac_Kidney_endothelial cell
+UroCardiac_Kidney_macrophage
+UroCardiac_Kidney_nk cell
+UroCardiac_Kidney_cd4-positive helper t cell
+NA_Large Intestine_immature enterocyte
+NA_Large Intestine_intestinal crypt stem cell
+NA_Large Intestine_mature enterocyte
+NA_Large Intestine_goblet cell
+RespiratoryImmune_Lung_basophil
+RespiratoryImmune_Lung_classical monocyte
+RespiratoryImmune_Lung_endothelial cell of artery
+RespiratoryImmune_Lung_lung ciliated cell
+RespiratoryImmune_Lung_dendritic cell
+RespiratoryImmune_Lung_cd4-positive, alpha-beta t cell
+RespiratoryImmune_Lung_respiratory goblet cell
+RespiratoryImmune_Lung_basal cell
+RespiratoryImmune_Lung_plasma cell
+RespiratoryImmune_Lung_b cell
+RespiratoryImmune_Lung_cd8-positive, alpha-beta t cell
+RespiratoryImmune_Lung_serous cell of epithelium of bronchus
+RespiratoryImmune_Lung_non-classical monocyte
+RespiratoryImmune_Lung_capillary endothelial cell
+RespiratoryImmune_Lung_capillary aerocyte
+RespiratoryImmune_Lung_type i pneumocyte
+RespiratoryImmune_Lung_vein endothelial cell
+RespiratoryImmune_Lung_alveolar fibroblast
+RespiratoryImmune_Lung_endothelial cell of lymphatic vessel
+RespiratoryImmune_Lung_bronchial smooth muscle cell
+RespiratoryImmune_Lung_plasmacytoid dendritic cell
+RespiratoryImmune_Lung_club cell
+RespiratoryImmune_Lung_lung microvascular endothelial cell
+RespiratoryImmune_Lung_vascular associated smooth muscle cell
+RespiratoryImmune_Lung_myofibroblast cell
+RespiratoryImmune_Lung_pericyte cell
+RespiratoryImmune_Lung_mesothelial cell
+RespiratoryImmune_Lung_intermediate monocyte
+RespiratoryImmune_Lung_fibroblast
+RespiratoryImmune_Lung_pulmonary ionocyte
+NA_Lymph Node_naive b cell
+NA_Lymph Node_memory b cell
+NA_Lymph Node_naive thymus-derived cd4-positive, alpha-beta t cell
+NA_Lymph Node_cd4-positive, alpha-beta memory t cell
+NA_Lymph Node_cd8-positive, alpha-beta memory t cell
+NA_Lymph Node_mature nk t cell
+Digestive_Pancreas_pancreatic pp cell
+Digestive_Pancreas_pancreatic alpha cell
+Digestive_Pancreas_pancreatic delta cell
+NA_Small Intestine_intestinal crypt stem cell
+NA_Small Intestine_immature enterocyte
+NA_Small Intestine_goblet cell
+NA_Small Intestine_mature enterocyte
+NA_Small Intestine_duodenum glandular cell
+RespiratoryImmune_Spleen_mature nk t cell
+RespiratoryImmune_Spleen_cd8-positive, alpha-beta t cell
+RespiratoryImmune_Thymus_cd8-positive, alpha-beta t cell
+RespiratoryImmune_Thymus_memory b cell
+RespiratoryImmune_Thymus_naive b cell
+RespiratoryImmune_Thymus_mesothelial cell
+RespiratoryImmune_Thymus_mature nk t cell
+RespiratoryImmune_Thymus_fast muscle cell
+RespiratoryImmune_Thymus_dendritic cell
+RespiratoryImmune_Thymus_immature natural killer cell
+RespiratoryImmune_Thymus_thymocyte
+RespiratoryImmune_Thymus_mast cell
+RespiratoryImmune_Trachea_goblet cell
+RespiratoryImmune_Trachea_connective tissue cell
+UroCardiac_Vasculature_epithelial cell

@@ -1,0 +1,31 @@
+cluster,actual_cell_type,predicted_cell_type
+All_Liver_Digestive_macrophage_noquery,macrophage,Kupffer Cell
+All_Liver_Digestive_macrophage_query,macrophage,Kupffer Cell
+Group_Liver_Digestive_macrophage_noquery,macrophage,Can't Identify
+Group_Liver_Digestive_macrophage_query,macrophage,Can't Identify
+Organ_Liver_Digestive_macrophage_noquery,macrophage,Hepatocyte
+Organ_Liver_Digestive_macrophage_query,macrophage,Hepatocyte
+All_Liver_Digestive_monocyte_noquery,monocyte,Kupffer Cells
+All_Liver_Digestive_monocyte_query,monocyte,Kupffer Cells
+Group_Liver_Digestive_monocyte_noquery,monocyte,Kupffer Cells
+Group_Liver_Digestive_monocyte_query,monocyte,Kupffer Cells
+Organ_Liver_Digestive_monocyte_noquery,monocyte,Can't Identify
+Organ_Liver_Digestive_monocyte_query,monocyte,Can't Identify
+All_Liver_Digestive_endothelial cell of hepatic sinusoid_noquery,endothelial cell of hepatic sinusoid,Hepatocytes
+All_Liver_Digestive_endothelial cell of hepatic sinusoid_query,endothelial cell of hepatic sinusoid,Hepatocytes
+Group_Liver_Digestive_endothelial cell of hepatic sinusoid_noquery,endothelial cell of hepatic sinusoid,Can't Identify
+Group_Liver_Digestive_endothelial cell of hepatic sinusoid_query,endothelial cell of hepatic sinusoid,Can't Identify
+Organ_Liver_Digestive_endothelial cell of hepatic sinusoid_noquery,endothelial cell of hepatic sinusoid,Liver Sinusoidal Endothelial Cells
+Organ_Liver_Digestive_endothelial cell of hepatic sinusoid_query,endothelial cell of hepatic sinusoid,Liver Sinusoidal Endothelial Cells
+All_Liver_Digestive_liver dendritic cell_noquery,liver dendritic cell,Hepatocytes
+All_Liver_Digestive_liver dendritic cell_query,liver dendritic cell,Hepatocytes
+Group_Liver_Digestive_liver dendritic cell_noquery,liver dendritic cell,Can't Identify
+Group_Liver_Digestive_liver dendritic cell_query,liver dendritic cell,Can't Identify
+Organ_Liver_Digestive_liver dendritic cell_noquery,liver dendritic cell,Dendritic Cells
+Organ_Liver_Digestive_liver dendritic cell_query,liver dendritic cell,Dendritic Cells
+All_Liver_Digestive_nk cell_noquery,nk cell,Hepatocytes
+All_Liver_Digestive_nk cell_query,nk cell,Hepatocytes
+Group_Liver_Digestive_nk cell_noquery,nk cell,Can't Identify
+Group_Liver_Digestive_nk cell_query,nk cell,Can't Identify
+Organ_Liver_Digestive_nk cell_noquery,nk cell,Natural Killer Cells
+Organ_Liver_Digestive_nk cell_query,nk cell,Natural Killer Cells
