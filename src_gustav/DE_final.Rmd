@@ -1,0 +1,180 @@
+---
+title: "DE"
+author: "Gustav Helms (qbg413)"
+date: "2025-05-21"
+output: html_document
+---
+
+```{r}
+Sys.setenv(OPENAI_API_KEY = 'sk-d8RUXDW_dKijZg3qgg1EIg')
+
+# config.R
+OPENAI_API_KEY <- Sys.getenv("OPENAI_API_KEY")
+BASE_URL <- "https://api.marketplace.novo-genai.com/v1/chat/completions"
+MODEL <- "openai_gpt4_turbo_128k"
+TOP_N_GENES <- 10
+MAX_RETRIES <- 2
+SAMPLE_SIZE <- NULL # FOR NO SUBSET "NULL"
+MIN_CELLS_PER_GROUP <- 30  # RECONSIDER THIS MAYBE
+MARKER_LOG_DIR <- "marker_logs"
+```
+
+```{r}
+# Load libraries
+library(Seurat)
+library(tidyverse)
+
+# Loading local functions
+source("DE_functions.R")
+
+```
+
+
+```{r}
+# Load data
+obj <- readRDS("data_tabula_sapiens/tabula_preproccesed.rds")
+
+# Rename cols and create organ_celltype column
+obj@meta.data <- obj@meta.data %>%
+  rename(
+    Organ = organ, # INSERT ORGAN COL NAME
+    Celltype = cell_type # SAME HERE
+    ) %>% 
+  mutate(cell_id = rownames(.)) 
+
+# IF SUBSET is not null
+if (!is.null(SAMPLE_SIZE)){
+  obj <- subset(obj, cells = 
+                obj@meta.data %>%
+                group_by(Organ, Celltype) %>%
+                filter(n() >= min(SAMPLE_SIZE, MIN_CELLS_PER_GROUP)) %>%  # First filter groups by size
+                slice_sample(n = SAMPLE_SIZE) %>%    
+                pull(cell_id)
+                )
+} else{
+  obj <- subset(obj, cells = obj@meta.data %>%
+                group_by(Organ, Celltype) %>%
+                filter(n() >= MIN_CELLS_PER_GROUP) %>%  # filter groups by min size
+                pull(cell_id))
+}
+
+# Add Organ_Group column
+organ_to_group <- c(
+  # Digestive system
+  Liver = "Digestive",
+  Pancreas = "Digestive",
+  Small_Intestine = "Digestive",
+  Large_Intestine = "Digestive",
+  Salivary_Gland = "Digestive",
+  Tongue = "Digestive",
+
+  # Respiratory and Immune systems
+  Lung = "RespiratoryImmune",
+  Trachea = "RespiratoryImmune",
+  Spleen = "RespiratoryImmune",
+  Thymus = "RespiratoryImmune",
+  Lymph_Node = "RespiratoryImmune",
+  Blood = "RespiratoryImmune",
+  Bone_Marrow = "RespiratoryImmune",
+
+  # Reproductive and Endocrine
+  Uterus = "ReproductiveEndocrine",
+  Placenta = "ReproductiveEndocrine",
+  Mammary = "ReproductiveEndocrine",
+  Prostate = "ReproductiveEndocrine",
+  Adrenal = "ReproductiveEndocrine",
+
+  # Urinary and Cardiovascular
+  Kidney = "UroCardiac",
+  Bladder = "UroCardiac",
+  Heart = "UroCardiac",
+  Vasculature = "UroCardiac",
+
+  # Musculoskeletal
+  Muscle = "Musculoskeletal",
+  Fat = "Musculoskeletal",
+  Skin = "Musculoskeletal",
+
+  # Neural and Sensory
+  Eye = "NeuralSensory"
+)
+obj@meta.data$Organ_Group <- organ_to_group[obj@meta.data$Organ]
+
+# Rename all organs to not include "_"
+obj$Organ <- gsub("_", " ", obj$Organ)
+
+# Create organ celltype group
+obj$Organ_Celltype = paste(obj$Organ, obj$Celltype, sep = "_")
+
+# IF NOT already: Normalize the data
+#obj <- NormalizeData(obj)
+
+# Set identities
+Idents(obj) <- "Organ_Celltype"
+
+```
+
+
+```{r}
+######## DE - MAIN LOOP  ######### 
+
+# Create output directories if not exist
+if (!dir.exists(MARKER_LOG_DIR)) dir.create(MARKER_LOG_DIR)
+
+data_all <- obj
+
+predictions_list <- list()
+i <- 1
+n_iterations <- length(unique(data_all$Organ_Celltype))
+
+start_time <- Sys.time()
+
+completed_runs <- list.files(MARKER_LOG_DIR, pattern = "_markers.csv") %>%
+  str_remove("_markers.csv")
+
+cat("Starting prediction loop...\n")
+cat("Total iterations expected:", n_iterations, "\n\n")
+
+for (group in unique(data_all$Organ_Group)) {
+  data_group <- subset(data_all, Organ_Group == group)
+  
+  for (organ in unique(data_all$Organ[data_all$Organ_Group == group])) {
+    data_organ <- subset(data_group, Organ == organ) 
+    
+    for (cell_type in unique(data_all$Celltype[data_all$Organ == organ])) {
+      
+      combo_name <- paste(group, organ, cell_type, sep = "_")
+      
+      if (combo_name %in% completed_runs) {
+        message(sprintf("✅ Skipping already processed: %s", combo_name))
+        i <- i + 1
+        next
+      }
+      
+      iter_start <- Sys.time()
+      
+      cat(sprintf("[%d/%d] Running: Group = %s | Organ = %s | Celltype = %s\n", 
+                  i, n_iterations, group, organ, cell_type))
+      
+      # Run the DE and extract the markers
+      markers <- run_DE(data_all, data_group, data_organ, group, organ, cell_type)
+      
+      # Save all markers to logfiles
+      marker_outfile <- file.path(MARKER_LOG_DIR, paste0(group, "_", organ, "_", cell_type, "_markers.csv"))
+      write_csv(markers, marker_outfile)
+      
+      # Clean up temp directoriess to not CHRASH
+      cleanup_tmp_files()
+      
+      iter_end <- Sys.time()
+      duration <- round(as.numeric(difftime(iter_end, iter_start, units = "secs")), 2)
+      cat(sprintf("  ⏱️ Iteration time: %.2f sec | Total elapsed: %.2f sec\n\n", 
+                  duration, as.numeric(difftime(iter_end, start_time, units = "secs"))))
+      
+      i <- i + 1
+      
+    }
+  }
+}
+
+```

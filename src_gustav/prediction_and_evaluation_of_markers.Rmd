@@ -1,0 +1,126 @@
+---
+title: "new_prediction_method"
+author: "Gustav Helms (qbg413)"
+date: "2025-05-21"
+output: html_document
+---
+
+```{r}
+Sys.setenv(OPENAI_API_KEY = 'sk-d8RUXDW_dKijZg3qgg1EIg')
+
+# config.R
+OPENAI_API_KEY <- Sys.getenv("OPENAI_API_KEY")
+BASE_URL <- "https://api.marketplace.novo-genai.com/v1/chat/completions"
+MODEL <- "openai_gpt4_turbo_128k"
+TOP_N_GENES <- 10
+MAX_RETRIES <- 2
+RESULTS_LOG_FILE <- "results_predictions.csv"
+```
+
+```{r}
+# Load libraries
+library(tidyverse)
+
+source("prediction_functions.R")
+```
+
+```{r}
+# Load data
+path <- "marker_logs/"
+
+# List all .csv files
+csv_files <- list.files(path = path, pattern = "\\.csv$", full.names = TRUE)
+
+# Read and bind all CSVs
+df <- csv_files %>%
+  lapply(read_csv, show_col_types = FALSE) %>%    # read_csv from readr 
+  bind_rows()             # bind them together i
+```
+
+```{r}
+# Filter out top 10 marker genes per cluster: 
+df <- df %>%
+    group_by(cluster) %>%
+    arrange(p_val_adj, .by_group = TRUE) %>% # USE EITHER p_val_adj OR avg_log2FC for sorting 
+    slice_head(n = TOP_N_GENES) 
+
+
+# Extract cluster info
+df <- df %>%
+  separate(cluster, into = c("Condition", "Organ", "Group", "Celltype", "Query"), sep = "_", remove = TRUE)
+
+# Extract the groups and prepare the marker lists for the loop
+marker_groups <- df  %>%
+  group_by(Condition, Organ, Group, Celltype, Query) %>%
+  summarise(genes = paste(gene, collapse = ", "), .groups = "drop") %>%  # GETS THE LIST OF MARKER GENES
+  group_by(Organ, Condition, Query) %>%
+  group_split() # CREATES AN ITERATOR
+```
+
+
+```{r}
+# The loop
+i <- 1
+n_iterations <- length(marker_groups)
+
+start_time <- Sys.time()
+cat("Starting prediction loop...\n")
+cat("Total iterations expected:", n_iterations, "\n\n")
+
+# Checking completed runs
+completed_runs <- read.csv(RESULTS_LOG_FILE) %>% 
+  mutate(marker_group = paste(Organ, Condition, Query, sep = "_")) %>% 
+  pull(marker_group) %>%
+  unique()
+
+
+# Iterate over all groups of markers
+for (markers in marker_groups){
+  organ <- markers$Organ[1]
+  condition <- markers$Condition[1]
+  query <- markers$Query[1]
+  
+  combo_name <- paste(organ, condition, query, sep = "_")
+      
+      if (combo_name %in% completed_runs) {
+        message(sprintf("✅ Skipping already processed: %s", combo_name))
+        i <- i + 1
+        next
+      }
+  
+  iter_start <- Sys.time()
+  
+  cat(sprintf("\n[%d/%d] Processing:  Organ = %s | Condition = %s | Query = %s \n", 
+              i, n_iterations, organ, condition, query))
+  
+  
+  # Predict the cell types given markers
+  pred <- predict_celltypes(markers, tissuename = organ)
+  
+  # Evaluate the predictions
+  results <- evaluate_prediction_llm(pred)
+  
+  write_csv(results, RESULTS_LOG_FILE, append = file.exists(RESULTS_LOG_FILE))
+  
+  iter_end <- Sys.time()
+  duration <- round(as.numeric(difftime(iter_end, iter_start, units = "secs")), 2)
+  cat(sprintf("  ⏱️ Iteration time: %.2f sec | Total elapsed: %.2f sec\n\n", 
+              duration, as.numeric(difftime(iter_end, start_time, units = "secs"))))
+  
+  i <- i + 1 
+}
+
+end_time <- Sys.time()
+cat(sprintf("\n✅ Prediction loop completed in %.2f seconds total.\n", 
+            as.numeric(difftime(end_time, start_time, units = "secs"))))
+```
+
+```{r}
+# Load in results
+results <- read_csv(RESULTS_LOG_FILE, show_col_types = FALSE)
+# Compute match accuracy
+compute_match_accuracy(results)
+```
+
+
+

@@ -14,7 +14,7 @@ library(SeuratDisk)
 
 
 ```{r}
-# DONT RUN 
+# DONT RUN - REQUIRES DOWNLOADED .h5ad FILE. CREATES METADATA
 
 library(hdf5r)
 
@@ -57,7 +57,7 @@ saveRDS(obs_df, file = "data_tabula_sapiens/TabulaSapiens_bp/tabula_obs_metadata
 
 
 ```{r}
-# DONT RUN
+# DONT RUN - REQUIRES .h5ad FILE. CREATES INDEXING OF EXPRESSION MATRIX
 
 # Write the .h5ad file as bp. 
 tabula.data <- open_matrix_anndata_hdf5("data_tabula_sapiens/TabulaSapiens.h5ad")
@@ -87,6 +87,8 @@ tabula$method <- NULL
 
 
 ```{r}
+###### PREPROCESSING #######
+
 # Compute mitochondrial pt
 tabula[["percent.mt"]] <- PercentageFeatureSet(tabula, pattern = "^MT-")
 
@@ -102,7 +104,7 @@ tabula <- subset(tabula, subset = nFeature_RNA > 200 & nFeature_RNA < 7500 & per
 # Normalize the data
 tabula <- NormalizeData(tabula, normalization.method = "LogNormalize")
 
-# Remove redudandt cols and save seurat obj
+# Remove redudant cols and save seurat obj
 tabula@meta.data <- tabula@meta.data %>% 
   mutate(
     orig.ident = NULL,
