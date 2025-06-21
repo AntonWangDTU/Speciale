@@ -5,16 +5,15 @@ output: html_document
 
 ```{r message=FALSE, warning=FALSE}
 
-library(Seurat)
 library(tidyverse)
 library(patchwork)
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
-library(SeuratData)
+#library(SeuratData)
 # Load packages
-library(GPTCelltype)
-library(openai)
+#library(GPTCelltype)
+#library(openai)
 # Get system info to determine data path
 sys_info <- Sys.info()
 
@@ -24,35 +23,36 @@ if (grepl("Linux", sys_info["sysname"])) {
   data_dir <- 'C:/Users/hostp/Desktop/data/'
 }
 
-df <- read.csv("../../src_gustav/predictions_combined.csv")
+df <- read.csv("../../src_gustav/results_predictions.csv")
 dim(df)
+colnames(df)
 ```
 
 ```{r}
-library(dplyr)
-library(stringr)
-
-df <- df %>%
-  mutate(
-    test_type = word(cluster, 1, sep = "_"),  # All, Group, Organ
-    organ = word(cluster, 2, sep = "_"),      # e.g., Liver, Trachea
-    category = word(cluster, 3, sep = "_"),   # e.g., Digestive, RespiratoryImmune
-    query_status = ifelse(str_detect(cluster, "_query$"), "query", "noquery"),
-    correct = ifelse(actual_cell_type == predicted_cell_type, TRUE,
-                     ifelse(predicted_cell_type == "Can't Identify", NA, FALSE))
-  )
-
+#library(dplyr)
+#library(stringr)
+#
+#df <- df %>%
+#  mutate(
+#    test_type = word(cluster, 1, sep = "_"),  # All, Group, Organ
+#    organ = word(cluster, 2, sep = "_"),      # e.g., Liver, Trachea
+#    category = word(cluster, 3, sep = "_"),   # e.g., Digestive, RespiratoryImmune
+#    query_status = ifelse(str_detect(cluster, "_query$"), "query", "noquery"),
+#    correct = ifelse(actual_cell_type == predicted_cell_type, TRUE,
+#                     ifelse(predicted_cell_type == "Can't Identify", NA, FALSE))
+#  )
+#
 ```
 
 ```{r}
 
-df <- readRDS("../../src_gustav/results_tabula.rds")
+df <- readRDS("../../src_gustav/prediction_functions.R")
 write.csv(df, "result_tabula.csv", row.names = FALSE)
 
 
-df <- df %>% 
-  rename(tmp1 = Group, tmp2 = Organ) %>% 
-  rename(Organ = tmp1, Group = tmp2)
+#df <- df %>% 
+  #rename(tmp1 = Group, tmp2 = Organ) %>% 
+  #rename(Organ = tmp1, Group = tmp2)
 
 head(df)
 ```
@@ -73,31 +73,52 @@ ggplot(df, aes(x = Condition, fill = match)) +
 
 ```{r}
 library(tidyverse)
-library(patchwork)  # install with install.packages("patchwork") if needed
+library(scales)
+library(patchwork)
 
-# Plot 1: By Condition
-p1 <- ggplot(df, aes(x = Condition, fill = match)) +
-  geom_bar() +
-  labs(title = "Match Type by Condition", x = "Condition", y = "Count") +
-  theme_minimal()
+# ---- Preprocess ----
+df <- df %>%
+  mutate(
+    match_score = case_when(
+      match == "Match" ~ 2,
+      match == "Partial Match" ~ 1,
+      TRUE ~ 0
+    ),
+    match_alpha = ifelse(match == "No Match", "Transparent", "Opaque"),
+    match = factor(match, levels = c("No Match", "Partial Match", "Match"))
+  )
 
-# Plot 2: By Organ
-p2 <- ggplot(df, aes(x = Organ, fill = match)) +
-  geom_bar() +
-  labs(title = "Match Type by Organ", x = "Organ", y = "Count") +
+# Order Condition and Query (optional: you can customize this)
+df$Condition <- factor(df$Condition, levels = unique(df$Condition))
+df$Query <- factor(df$Query, levels = unique(df$Query))
+df$Organ <- factor(df$Organ, levels = unique(df$Organ))  # Optional ordering
+
+# ---- Plot: Facet by Organ ----
+p_all_organs <- ggplot(df, aes(x = Condition, fill = match, alpha = match_alpha)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ Organ, ncol = 3) +  # Adjust ncol to control layout
+  scale_y_continuous(labels = percent_format()) +
+  scale_alpha_manual(values = c("Transparent" = 0.4, "Opaque" = 1)) +
+  scale_fill_manual(values = c(
+    "Match" = "forestgreen",
+    "Partial Match" = "steelblue",
+    "No Match" = "lightcoral"
+  )) +
+  labs(title = "Match Type by Condition Across Organs",
+       x = "Condition", y = "Proportion", fill = "Match Type") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Plot 3: By Query
-p3 <- ggplot(df, aes(x = Query, fill = match)) +
-  geom_bar() +
-  labs(title = "Match Type by Query Status", x = "Query", y = "Count") +
-  theme_minimal()
+# ---- Save and Show Plot ----
+ggsave("../plots/match_by_condition_all_organs.png", plot = p_all_organs, width = 10, height = 8, dpi = 300)
 
-# Combine them vertically
-p1 / p2 / p3
+p_all_organs
 
 ```
+```{r}
+```
+
 
 ```{r}
 library(tidyverse)
@@ -198,7 +219,7 @@ plt
 ```{r}
 
 # Load local functions
-source("../../src_gustav/cell_typing_functions.R")
+source("../../src_gustav/prediction_functions.R")
 
 compute_match_accuracy(df)
 ```
@@ -304,58 +325,33 @@ print(final_chi_results)
 
 ```
 
+### Logistic regression test for all organs
+
 ```{r}
 library(tidyverse)
+library(broom)  # for tidy model outputs
 
-# Ensure binary column is present
+# Ensure match_binary is in the data
+# Example: create binary outcome variable
 df <- df %>%
-  mutate(match_binary = ifelse(match == "Match", 1, 0))
+  mutate(
+    match_binary = ifelse(match == "Match", 1, 0)
+  )
 
-# Unique organs
-organs <- unique(df$Organ)
-logit_results <- list()
+# ---- Run logistic regression for each Organ ----
+logit_results <- df %>%
+  group_by(Organ) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ glm(match_binary ~ Condition, family = binomial, data = .x)),
+    tidy_model = map(model, ~ tidy(.x))
+  ) %>%
+  unnest(tidy_model) %>%
+  select(Organ, term, estimate, std.error, statistic, p.value)
 
-for (org in organs) {
-  df_org <- df %>% filter(Organ == org)
-
-  # Only run if at least 2 conditions and both outcome classes are present
-  if (n_distinct(df_org$Condition) >= 2 && length(unique(df_org$match_binary)) > 1) {
-    
-    # Try logistic regression
-    model <- tryCatch(
-      glm(match_binary ~ Condition, data = df_org, family = "binomial"),
-      error = function(e) NULL
-    )
-
-    if (!is.null(model)) {
-      coefs <- summary(model)$coefficients
-      
-      # Extract p-values if available
-      p_group <- coefs["ConditionGroup", "Pr(>|z|)"] %||% NA
-      p_organ <- coefs["ConditionOrgan", "Pr(>|z|)"] %||% NA
-      
-      logit_results[[org]] <- tibble(
-        Organ = org,
-        Logit_p_Group = p_group,
-        Logit_p_Organ = p_organ,
-        OR_Group = exp(coef(model)["ConditionGroup"]) %||% NA,
-        OR_Organ = exp(coef(model)["ConditionOrgan"]) %||% NA,
-        Note = "OK"
-      )
-    } else {
-      logit_results[[org]] <- tibble(Organ = org, Logit_p_Group = NA, Logit_p_Organ = NA,
-                                     OR_Group = NA, OR_Organ = NA, Note = "Model failed")
-    }
-
-  } else {
-    logit_results[[org]] <- tibble(Organ = org, Logit_p_Group = NA, Logit_p_Organ = NA,
-                                   OR_Group = NA, OR_Organ = NA, Note = "Insufficient data")
-  }
-}
-
-# Combine and print results
-final_logit <- bind_rows(logit_results)
-print(final_logit)
+# ---- View results ----
+logit_results %>% 
+  filter(p.value < 0.05)
 
 ```
 
