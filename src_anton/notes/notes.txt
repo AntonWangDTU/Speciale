@@ -1,0 +1,24 @@
+
+
+
+
+
+Til når du skal organ specific analyse af hvor heterogen referencen skal være, 
+skal du slef kun bruge et mindre dataset.
+
+Men hvordan skal vi dele det organ specific dataset op?
+
+-------------------------------------------------------------------------------------------
+Fra møde:
+
+Vi skal måske bare sample alle celle typer ned til 5000 for at gøre det nemere.
+
+Mht til query. Vi skulle meget gerne se når vi bliver ultra specifikke og ser 
+enkelte clusters inden for samme organ at query inkludering gerne skulle have en mærkbar effekt. 
+
+Vi går us fra at vi har inngen ide om hvad der er i prøven.
+
+
+Arbejd videre med tabula
+
+-------------------------------------------------------------------------------------------
