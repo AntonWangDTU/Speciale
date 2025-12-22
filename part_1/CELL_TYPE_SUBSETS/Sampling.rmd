@@ -1,0 +1,319 @@
+---
+title: "Sampling"
+author: "Gustav Helms (qbg413)"
+date: "2025-09-23"
+output: html_document
+---
+```{r}
+#######################################
+# SCRIPT FOR SAMPLING THE CELL TYPE GRAPH
+#######################################
+
+pacman::p_load(tidyverse, igraph)
+
+dist_mat <- readRDS("dist_mat_celltypes.rds")
+g <- readRDS("cell_type_graph.rds")
+```
+
+
+```{r}
+# Make all lower triangle and diagonal NA to avoid DUPLICATES
+dist_mat[lower.tri(dist_mat, diag = TRUE)] <- NA
+
+# Convert to edge list
+edges <- which(!is.na(dist_mat), arr.ind = TRUE)
+edges_df <- data.frame(
+  from = rownames(dist_mat)[edges[,1]],
+  to = colnames(dist_mat)[edges[,2]],
+  distance = dist_mat[!is.na(dist_mat)]
+) %>%
+  # Avoid division by zero by adding a small epsilon
+  mutate(weight = 1 / (distance + 1e-6),
+         cor = 1-distance) %>%
+  filter(distance > 0) %>%  # remove self-loops or exact zeros
+  select(from, to, weight, distance, cor)  # keep only needed columns
+
+```
+
+```{r}
+hist(edges_df$cor)
+```
+
+
+
+```{r}
+# -----------------------------
+# 1️⃣ Define similarity bins
+# -----------------------------
+similarity_bins <- list(
+  very_similar = c(0.9, 1),
+  medium = c(0.8, 0.9),
+  diverse = c(0.6, 0.8),
+  highly_diverse = c(-Inf, 0.6)
+)
+
+# -----------------------------
+# 2️⃣ Build subgraphs per similarity bin
+# -----------------------------
+build_subgraph <- function(g, edges_df, cor_range) {
+  filtered_edges <- edges_df %>% filter(cor >= cor_range[1], cor <= cor_range[2])
+  # Create igraph directly from filtered edges
+  g_filtered <- graph_from_data_frame(filtered_edges %>% select(from, to, weight = cor),
+                                      directed = FALSE)
+  return(g_filtered)
+}
+
+sub_g_very_sim <- build_subgraph(g, edges_df, similarity_bins$very_similar)
+sub_g_medium   <- build_subgraph(g, edges_df, similarity_bins$medium)
+sub_g_diverse  <- build_subgraph(g, edges_df, similarity_bins$diverse)
+sub_g_highly_diverse <- build_subgraph(g, edges_df, similarity_bins$highly_diverse)
+
+# -----------------------------
+# 3️⃣ Helper: sample ego neighborhoods
+# -----------------------------
+sample_ego_subset <- function(sub_g, n_nodes = 2, n_samples = 100) {
+  nodes_all <- V(sub_g)$name
+  samples <- vector("list", n_samples)
+  
+  for (i in seq_len(n_samples)) {
+    start <- sample(nodes_all, 1)
+    nbrs <- ego(sub_g, order = 1, nodes = start)[[1]]
+    nbrs_nodes <- setdiff(names(nbrs), start)
+    if (length(nbrs_nodes) < (n_nodes - 1)) next
+    selected <- c(start, sample(nbrs_nodes, n_nodes - 1))
+    samples[[i]] <- selected
+  }
+  samples <- samples[!sapply(samples, is.null)]
+  return(samples)
+}
+
+# -----------------------------
+# 4️⃣ Helper: sample one cell multiple tissues) # GROUP2
+# -----------------------------
+sample_group_two <- function(nodes, n_samples) {
+  # Pre-compute cell type mapping
+  celltype_map <- split(nodes, sapply(strsplit(nodes, "_"), function(x) paste(x[-1], collapse = "_")))
+  # Remove cell types that only occur once (optional, to ensure multiple tissues)
+  celltype_map <- celltype_map[sapply(celltype_map, length) > 1]
+  # Sample subsets
+  samples <- lapply(1:N_samples, function(x) {
+    chosen_type <- sample(names(celltype_map), 1)
+    celltype_map[[chosen_type]]
+    })
+  return(samples)
+}
+
+# -----------------------------
+# 5️⃣ Helper: compute mean correlation for a subset- DIFFICULT TO READ BUT FAST
+# -----------------------------
+compute_subset_cor_fast <- function(subset_nodes, lookup) {
+  if (length(subset_nodes) < 2) return(NA)
+  
+  # All pairs
+  pairs <- t(combn(subset_nodes, 2))
+  keys <- paste(pmin(pairs[,1], pairs[,2]), pmax(pairs[,1], pairs[,2]), sep = "_")
+  
+  mean(lookup[keys], na.rm = TRUE)
+}
+
+# Create a lookup: from-to pairs → cor
+edge_cor_lookup <- with(edges_df, {
+  key <- paste(pmin(from, to), pmax(from, to), sep = "_")
+  setNames(cor, key)
+})
+
+# -----------------------------
+# 5️⃣ Helper:Creating a df for easier integration and readability
+# -----------------------------
+
+# Helper to format samples directly into a df
+make_samples_df <- function(samples, group_name, lookup) {
+  if (length(samples) == 0) return(NULL)
+  data.frame(
+    group = group_name,
+    subset_id = seq_along(samples),
+    nodes = sapply(samples, paste, collapse = ";"),
+    mean_cor = sapply(samples, compute_subset_cor_fast, lookup = lookup),
+    stringsAsFactors = FALSE
+  )
+}
+
+```
+
+
+```{r}
+# -----------------------------
+# 6️⃣ Sampling groups 1-4
+# -----------------------------
+nodes_all <- V(g)$name
+N_samples <- 1000
+
+# Pre-allocate empty df
+subsets_df <- data.frame(group = character(),
+                         subset_id = integer(),
+                         nodes = character(),
+                         mean_cor = numeric(),
+                         stringsAsFactors = FALSE)
+
+# ---- Group 1
+#samples <- lapply(1:N_samples, function(x) sample(nodes_all, 1))
+#subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 1, edge_cor_lookup))
+
+# ---- Group 2
+#samples <- sample_group_two(nodes_all, 10)
+#subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name =2, edge_cor_lookup))
+
+# ---- Group 3
+#samples <- sample_ego_subset(sub_g_very_sim, n_nodes = 2, n_samples = N_samples)
+#subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 3, edge_cor_lookup))
+
+# ---- Group 4
+#samples <- sample_ego_subset(sub_g_very_sim, n_nodes = 3, n_samples = N_samples)
+#subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 4, edge_cor_lookup))
+
+# -----------------------------
+# 6️⃣ Sampling groups 5-9: 2-N celltypes included
+# -----------------------------
+N_nodes <- 7
+
+for (i in 2:N_nodes){
+  # ---- Group 5
+  samples <- sample_ego_subset(sub_g_very_sim, n_nodes = i, n_samples = N_samples)
+  subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 5, edge_cor_lookup))
+  
+  # ---- Group 6
+  #samples <- sample_ego_subset(sub_g_medium, n_nodes = i, n_samples = N_samples)
+  #subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 6, edge_cor_lookup))
+  
+  # ---- Group 7
+  #samples <- sample_ego_subset(sub_g_diverse, n_nodes = i, n_samples = N_samples)
+  #subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 7, edge_cor_lookup))
+  
+  # ---- Group 8
+  #samples <- sample_ego_subset(sub_g_highly_diverse, n_nodes = i, n_samples = N_samples)
+  #subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 8, edge_cor_lookup))
+  
+  # ---- Group 9
+  #samples <- lapply(1:N_samples, function(x) sample(nodes_all, i))
+  #subsets_df <- rbind(subsets_df, make_samples_df(samples, group_name = 9, edge_cor_lookup))
+}
+
+
+# -----------------------------
+# 8️⃣ Save CSV
+# -----------------------------
+# FILTER ONLY FOR VAE + LDM
+subsets_df <- subsets_df %>% filter(group %in% c(5)) %>% 
+  mutate(
+    n_cells = str_count(nodes, ";") + 1
+  )
+write.csv(subsets_df, "celltype_subsets_graph_based.csv", row.names = FALSE)
+head(subsets_df)
+
+```
+
+
+```{r}
+library(ggplot2)
+subsets_df <- read.csv("celltype_subsets_graph_based.csv")
+
+# Ensure group is factor
+subsets_df$group <- factor(subsets_df$group,
+                           levels = unique(subsets_df$group))  # keep
+
+# Basic boxplot
+ggplot(subsets_df, aes(x = group, y = mean_cor, fill = group)) +
+  geom_boxplot(outlier.shape = NA) +      # hide outlier points for clarity
+  geom_jitter(width = 0.2, alpha = 0.3) + # optional: show individual points
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  ) +
+  ylab("Mean correlation of subset") +
+  xlab("Subset group") +
+  ggtitle("Distribution of subset correlations by group")
+
+```
+
+```{r}
+#######################################
+# CHECKING THE DISTANCE IN THE OLD GROUPS 
+#######################################
+
+GROUP_DIR <- "../disco_data/all_conditions.csv"
+groups <- read_delim(GROUP_DIR, delim = ",", show_col_types = FALSE)
+groups <- groups %>% filter(condition != 1)
+
+groups <- groups %>%
+  mutate(
+    mean_cor = sapply(
+      tissue_cell_type,
+      function(x) {
+        # split string into vector of node names
+        nodes <- str_split(x, ",\\s*")[[1]]
+        compute_subset_cor_fast(nodes, edge_cor_lookup)
+      }
+    )
+  )
+# Ensure group is factor
+groups$condition <- factor(groups$condition,
+                           levels = unique(groups$condition))  # keep
+
+```
+
+```{r}
+library(ggplot2)
+
+# Basic boxplot
+ggplot(groups, aes(x = condition, y = mean_cor, fill = condition)) +
+  geom_boxplot(outlier.shape = NA) +      # hide outlier points for clarity
+  geom_jitter(width = 0.2, alpha = 0.3) + # optional: show individual points
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  ) +
+  ylab("Mean correlation of subset") +
+  xlab("Subset group") +
+  ggtitle("Distribution of subset correlations by group")
+
+```
+
+```{r}
+# IMPORT DISCO
+disco = readRDS("../disco_data/disco_combined_normalized.rds")
+disco <- JoinLayers(disco)
+
+# SUBsetting
+disco@meta.data <- disco@meta.data %>% 
+  mutate(tissue_cell = paste(tissue, cell_type, sep= "_")) %>% 
+  group_by(tissue_cell) %>% 
+  slice_head(n = 1000) %>% 
+  ungroup()
+
+```
+
+```{r}
+groups <- read_csv("celltype_subsets_graph_based.csv")
+
+head(groups)
+
+```
+
+
+```{r}
+# Raw count matrix (genes × cells)
+X <- GetAssayData(disco[["RNA"]], slot = "counts")
+
+# Cell metadata (cells × variables)
+meta <- disco@meta.data
+
+library(Matrix)
+
+writeMM(X, "disco_counts.mtx")
+write.csv(meta_cluster, "disco_meta.csv")
+write.csv(data.frame(gene = rownames(X)), "disco_var.csv", row.names = FALSE)
+
+
+```

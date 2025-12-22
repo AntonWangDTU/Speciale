@@ -1,0 +1,326 @@
+┌─────────────────────────────────────────────────────────────────┐
+│                    experiments/run_grid_search.py               │
+│  • Defines configurations (latent_dims, denoise_steps)          │
+│  • Checks for completed experiments (resume capability)         │
+│  • Loops over REMAINING combinations only                       │
+│  • Orchestrates the entire pipeline with caching                │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       src/pipeline.py                           │
+│                 (Main Pipeline Controller)                       │
+│                                                                  │
+│  run_single_experiment(latent_dim, denoise_steps):              │
+│    1. Load & Split Data (ONCE only) ──────────────┐             │
+│    2. Train VAE (ONCE per latent_dim) ────────┐   │             │
+│    3. Extract Latents (cached)  ──────────┐   │   │             │
+│    4. Train Diffusion (ONCE per latent_dim)┐  │   │             │
+│    5. Denoise Latents (per config)     ─┐  │  │   │             │
+│    6. Compute PCA (ONCE per latent_dim)─┼──┼──┼───┼─────┐       │
+│    7. Evaluate (cLISI, test only)   ────┼──┼──┼───┼─────┼───┐   │
+│    8. Save Results (incremental)        │  │  │   │     │   │   │
+└─────────────────────────────────────────┼──┼──┼───┼─────┼───┼───┘
+                                          │  │  │   │     │   │
+        ┌─────────────────────────────────┘  │  │   │     │   │
+        │  ┌────────────────────────────────┘  │   │     │   │
+        │  │  ┌─────────────────────────────────┘   │     │   │
+        │  │  │  ┌──────────────────────────────────┘     │   │
+        │  │  │  │                                         │   │
+        ▼  ▼  ▼  ▼                                         ▼   ▼
+    ┌─────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+    │  src/models/    │  │  src/utils/      │  │ src/config.py    │
+    │  + Cache Files  │  │                  │  │                  │
+    │  • vae.py       │  │  • dataset.py    │  │ Configuration    │
+    │  • diffusion.py │  │  • evaluation.py │  │ dataclasses      │
+    │  ✓ *.pt (models)│  │                  │  │                  │
+    │  ✓ *.npz (cache)│  │                  │  │                  │
+    └─────────────────┘  └──────────────────┘  └──────────────────┘
+
+    
+run_grid_search.py
+    │
+    ├─→ Creates ExperimentConfig (data paths, latent_dims, denoise_steps)
+    ├─→ Creates VAEConfig (architecture, training params)
+    ├─→ Creates DiffusionConfig (diffusion hyperparameters)
+    │
+    ├─→ Loads completed experiments from CSV (RESUME CAPABILITY)
+    │       └─→ Returns: set of (latent_dim, denoise_steps) already done
+    │
+    ├─→ Filters to remaining experiments only
+    │       └─→ Skips already completed configurations
+    │
+    └─→ Initializes Pipeline(exp_config, vae_config, diff_config)
+            │
+            ├─→ Sets random seeds (torch, numpy)
+            ├─→ Creates output directories (models/, results/, data/)
+            └─→ Configures device (GPU/CPU)
+
+════════════════════════════════════════════════════════════════════
+OPTIMIZED PIPELINE FLOW (with 3-level caching)
+════════════════════════════════════════════════════════════════════
+
+Pipeline.run_single_experiment(latent_dim=20, denoise_steps=100)
+    │
+    ├─→ [STEP 0] Check if data already loaded (ONCE per grid search)
+    │       │
+    │       ├─→ if not hasattr(self, 'adata_test_master'):
+    │       │       ├─→ Reads: data/allCT_1.0k.h5ad
+    │       │       ├─→ train_test_split (70% train, 30% temp)
+    │       │       │       stratified by cell_type ← PREVENTS DATA LEAKAGE
+    │       │       ├─→ train_test_split (temp → 67% val, 33% test)
+    │       │       │       stratified by cell_type
+    │       │       └─→ Stores: self.adata_train, self.adata_val, self.adata_test_master
+    │       │
+    │       └─→ else: Reuses already loaded data (instant)
+    │
+    ├─→ [STEP 1] train_vae_for_latent_dim(latent_dim=20) ← CACHING LEVEL 1
+    │       │
+    │       ├─→ Check cache:
+    │       │   ├─→ models/vae_latent20_best.pt exists?
+    │       │   └─→ models/vae_latent20_latents.npz exists?
+    │       │
+    │       ├─→ If BOTH exist (CACHE HIT):
+    │       │   ├─→ Load VAE model from .pt file (instant)
+    │       │   ├─→ Load cached latents from .npz file (instant)
+    │       │   ├─→ Print: "✓ Found existing VAE model for latent_dim=20"
+    │       │   └─→ Returns: (vae_model, latents_train, latents_val, latents_test)
+    │       │       └─→ Time saved: ~62 minutes (60 min train + 2 min extract)
+    │       │
+    │       └─→ If NOT cached (CACHE MISS):
+    │           ├─→ Creates scRNADataset(adata_train) ← Only training data
+    │           ├─→ Creates scRNADataset(adata_val)   ← Only validation data
+    │           │
+    │           ├─→ DataLoader(train_dataset, shuffle=True)
+    │           ├─→ DataLoader(val_dataset, shuffle=False)
+    │           │
+    │           ├─→ Initializes scRNAVAE(input_dim, latent_dim=20)
+    │           │       from models/vae.py (with numerical stability)
+    │           │
+    │           ├─→ Training loop (~60 minutes):
+    │           │   for epoch in range(max_epochs):
+    │           │       • Train on train_loader only
+    │           │       • Compute train loss (ZINB + KL)
+    │           │       • Validate on val_loader (torch.no_grad())
+    │           │       • Gradient clipping (max_norm=1.0)
+    │           │       • NaN detection and handling
+    │           │       • Early stopping based on val_loss
+    │           │       • Save best model checkpoint
+    │           │
+    │           ├─→ Extract latents (~2 minutes):
+    │           │   ├─→ model.eval()
+    │           │   ├─→ For each split (train/val/test):
+    │           │   │       • model.get_latent(data) ← Encodes to latent space
+    │           │   │       • NaN check on extracted latents
+    │           │   │       • Returns latent vectors (N_cells, latent_dim)
+    │           │   │
+    │           │   └─→ Cache latents for future use:
+    │           │       np.savez_compressed(
+    │           │           'models/vae_latent20_latents.npz',
+    │           │           train=latents_train,
+    │           │           val=latents_val,
+    │           │           test=latents_test
+    │           │       )
+    │           │
+    │           └─→ Returns: (vae_model, latents_train, latents_val, latents_test)
+    │
+    ├─→ Store VAE latents in AnnData:
+    │       adata_test.obsm['X_VAE_latent20'] = latents_test
+    │
+    ├─→ [STEP 2] train_diffusion_for_config(latents_train, latent_dim=20) ← CACHING LEVEL 2
+    │       │
+    │       ├─→ Check cache:
+    │       │   └─→ models/diffusion_latent20.pt exists?
+    │       │
+    │       ├─→ If exists (CACHE HIT):
+    │       │   ├─→ Load diffusion model from .pt file (instant)
+    │       │   ├─→ Initialize GaussianDiffusion process
+    │       │   ├─→ Print: "✓ Found existing diffusion model for latent_dim=20"
+    │       │   └─→ Returns: (diffusion_model, diffusion_process)
+    │       │       └─→ Time saved: ~15 minutes
+    │       │
+    │       └─→ If NOT cached (CACHE MISS):
+    │           ├─→ Creates LatentDataset(latents_train) ← Only training latents
+    │           │       from utils/dataset.py
+    │           │
+    │           ├─→ DataLoader(dataset, shuffle=True, num_workers=4)
+    │           │
+    │           ├─→ Initializes LatentDenoiser(latent_dim=20)
+    │           │       from models/diffusion.py
+    │           │
+    │           ├─→ Initializes GaussianDiffusion(timesteps=2000)
+    │           │       from models/diffusion.py
+    │           │
+    │           ├─→ Training loop (~15 minutes):
+    │           │   for epoch in range(num_epochs):
+    │           │       for batch in dataloader:
+    │           │           • Sample random timestep t
+    │           │           • Add noise: noisy = diffusion.q_sample(batch, t)
+    │           │           • Predict noise: pred = model(noisy, t)
+    │           │           • Compute MSE loss
+    │           │           • Backprop & update
+    │           │           • Update EMA shadow parameters (decay=0.9999)
+    │           │
+    │           ├─→ Applies EMA weights to model (final smoothed weights)
+    │           │
+    │           ├─→ Saves: models/diffusion_latent20.pt
+    │           │
+    │           └─→ Returns: (diffusion_model, diffusion_process)
+    │
+    ├─→ [STEP 3] Denoise latents (denoise_steps=100) ← CACHING LEVEL 3
+    │       │
+    │       ├─→ Check cache:
+    │       │   └─→ models/denoised_latent20_steps100.npz exists?
+    │       │
+    │       ├─→ If exists (CACHE HIT):
+    │       │   ├─→ Load denoised latents from .npz file (instant)
+    │       │   ├─→ Print: "✓ Loading cached denoised latents"
+    │       │   └─→ Time saved: ~5 minutes
+    │       │
+    │       └─→ If NOT cached (CACHE MISS):
+    │           ├─→ Creates LatentDataset(latents_test)
+    │           ├─→ DataLoader(shuffle=False) ← Preserves order
+    │           │
+    │           ├─→ For each batch (~5 minutes):
+    │           │       diffusion.denoise(model, batch, steps=100)
+    │           │           │
+    │           │           └─→ Reverse diffusion process:
+    │           │               for t in reversed(range(100)):
+    │           │                   x = p_sample(model, x, t)
+    │           │                   # Iteratively removes noise
+    │           │
+    │           ├─→ Concatenates denoised batches
+    │           │
+    │           ├─→ NaN check on denoised results
+    │           │
+    │           └─→ Cache for future use:
+    │               np.savez_compressed(
+    │                   'models/denoised_latent20_steps100.npz',
+    │                   denoised_test=denoised_test
+    │               )
+    │
+    ├─→ Store denoised latents in AnnData:
+    │       adata_test.obsm['X_VAE_denoised_latent20_steps100'] = denoised_test
+    │
+    ├─→ [STEP 4] Compute PCA (ONCE per latent_dim, shared across denoise_steps)
+    │       │
+    │       ├─→ Check if already computed:
+    │       │   └─→ 'X_pca_latent20' in adata_test.obsm?
+    │       │
+    │       ├─→ If exists: Skip (already computed for this latent_dim)
+    │       │
+    │       └─→ If NOT exists:
+    │           ├─→ Fit StandardScaler on X_train only
+    │           ├─→ Transform X_train, X_test using train statistics
+    │           ├─→ Fit PCA(n_components=20) on X_train_scaled only
+    │           ├─→ Transform X_test using train PCA
+    │           └─→ Store: adata_test.obsm['X_pca_latent20']
+    │               └─→ Prevents data leakage (fit on train, transform test)
+    │
+    ├─→ [STEP 5] Preprocess raw data (ONCE only, shared across all configs)
+    │       │
+    │       ├─→ Check if already processed:
+    │       │   └─→ hasattr(self, 'adata_test_processed')?
+    │       │
+    │       ├─→ If exists: Skip (reuse for all configurations)
+    │       │
+    │       └─→ If NOT exists:
+    │           ├─→ adata_test_processed = adata_test.copy()
+    │           ├─→ sc.pp.normalize_total(target_sum=1e4)
+    │           ├─→ sc.pp.log1p()
+    │           ├─→ sc.pp.highly_variable_genes(n_top_genes=2000, subset=True)
+    │           └─→ Store: self.adata_test_processed
+    │
+    ├─→ [STEP 6] compute_metrics(adata_test, vae_key, denoised_key, pca_key)
+    │       │       from utils/evaluation.py
+    │       │       ← ONLY on test set! (never seen during training)
+    │       │
+    │       ├─→ Computes cLISI on different representations:
+    │       │   ├─→ clisi_pca = scib.metrics.clisi_graph(
+    │       │   │       adata_test, use_rep='X_pca_latent20')
+    │       │   │
+    │       │   ├─→ clisi_vae = scib.metrics.clisi_graph(
+    │       │   │       adata_test, use_rep='X_VAE_latent20')
+    │       │   │
+    │       │   ├─→ clisi_denoised = scib.metrics.clisi_graph(
+    │       │   │       adata_test, use_rep='X_VAE_denoised_latent20_steps100')
+    │       │   │
+    │       │   └─→ clisi_raw = scib.metrics.clisi_graph(
+    │       │           adata_test_processed, type_="full")
+    │       │           └─→ Computed ONCE, cached in self._clisi_raw_value
+    │       │
+    │       └─→ Returns: {
+    │               'clisi_pca': 0.7234,
+    │               'clisi_vae': 0.8123,
+    │               'clisi_denoised': 0.8456,
+    │               'clisi_raw': 0.6543
+    │           }
+    │
+    ├─→ [STEP 7] Save results (incremental and consolidated)
+    │       │
+    │       ├─→ Incremental save to CSV (append mode):
+    │       │   ├─→ results/grid_search_results_allCT_1.0k.csv
+    │       │   └─→ One row appended per experiment (resume capability)
+    │       │
+    │       ├─→ Results stored in adata_test.obsm (in memory):
+    │       │   ├─→ 'X_VAE_latent20'
+    │       │   ├─→ 'X_VAE_denoised_latent20_steps100'
+    │       │   └─→ 'X_pca_latent20'
+    │       │
+    │       └─→ Cache files saved in models/:
+    │           ├─→ vae_latent20_best.pt (if new)
+    │           ├─→ vae_latent20_latents.npz (if new)
+    │           ├─→ diffusion_latent20.pt (if new)
+    │           └─→ denoised_latent20_steps100.npz (if new)
+    │
+    └─→ Returns results to run_grid_search.py:
+        │   {
+        │       'latent_dim': 20,
+        │       'denoise_steps': 100,
+        │       'clisi_pca': 0.7234,
+        │       'clisi_vae': 0.8123,
+        │       'clisi_denoised': 0.8456,
+        │       'clisi_raw': 0.6543
+        │   }
+        │
+        └─→ run_grid_search.py:
+            ├─→ Appends to all_results list
+            ├─→ Saves to CSV (incremental)
+            └─→ Continues to next configuration
+
+════════════════════════════════════════════════════════════════════
+END OF SINGLE EXPERIMENT
+════════════════════════════════════════════════════════════════════
+
+After ALL experiments complete:
+
+run_grid_search.py (consolidation phase)
+    │
+    ├─→ Saves final consolidated results:
+    │   └─→ results/grid_search_results_allCT_1.0k_final.csv
+    │
+    ├─→ Saves final consolidated AnnData:
+    │   └─→ data/allCT_1.0k_grid_search_all_results.h5ad
+    │       Contains:
+    │       • All VAE latents (X_VAE_latent10, X_VAE_latent20, ...)
+    │       • All denoised latents (X_VAE_denoised_latent10_steps50, ...)
+    │       • All PCA representations (X_pca_latent10, X_pca_latent20, ...)
+    │       • Preprocessed data (X_processed)
+    │       • Original cell metadata (cell_type, etc.)
+    │
+    ├─→ Finds best configuration:
+    │   └─→ best_idx = df['clisi_denoised'].idxmax()
+    │
+    └─→ Prints summary:
+        ════════════════════════════════════════════════════════════
+        GRID SEARCH COMPLETE
+        ════════════════════════════════════════════════════════════
+        Total configurations: 25
+        Completed: 25
+        
+        BEST CONFIGURATION:
+        Dataset: allCT_1.0k
+        Latent Dim: 30
+        Denoise Steps: 150
+        cLISI (Denoised): 0.8567
+        ════════════════════════════════════════════════════════════

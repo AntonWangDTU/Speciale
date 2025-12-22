@@ -1,0 +1,100 @@
+---
+title: "condition_two_to_eight_disco"
+author: "Gustav Helms (qbg413)"
+date: "2025-09-16"
+output: html_document
+---
+
+```{r}
+# Load packages
+pacman::p_load(tidyverse, Seurat, BPCells)
+
+source("cleanup_function.R")
+
+MARKER_LOG_DIR <- "results_disco/marker_logs"
+GROUP_DIR <- "disco_data/all_conditions.csv"
+MARKER_LOG_COLS <- c("p_val","avg_log2FC","pct.1","pct.2","p_val_adj","cluster",
+                     "Tissue","Celltype","gene","Condition","Iteration")
+
+# Create output directories if not exist
+if (!dir.exists(MARKER_LOG_DIR)) dir.create(MARKER_LOG_DIR)
+
+obj <- readRDS("disco_data/disco_combined_normalized.rds")
+```
+
+
+```{r} 
+groups <- read_delim(GROUP_DIR, delim = ",", show_col_types = FALSE)
+
+# Remove everything but subset! 
+groups <- groups %>% 
+  filter(condition != 1) 
+```
+
+
+```{r}
+# Create new col for identity
+obj@meta.data <- obj@meta.data %>% 
+  mutate(tissue_cell = paste(tissue, cell_type, sep= "_"))
+
+# ITERATOR
+i <- 1
+n_iterations <- dim(groups)[1]
+start_time <- Sys.time()
+
+completed_runs <- list.files(MARKER_LOG_DIR, pattern = "_markers.csv") %>%
+  str_remove("_markers.csv")
+
+cat("Starting DE loop for condition 1...\n")
+cat("Total iterations expected:", n_iterations, "\n\n")
+
+
+for (i in 1:nrow(groups)){
+  # Unpacking tissue_cell pairs
+  list_of_cells <- str_split(groups[[i, 1]], ",")
+  list_of_cells[[1]] <- str_trim(list_of_cells[[1]], side = "left")
+  
+  condition <- groups[[i, 2]]
+  iterator <- groups[[i, 3]]
+  
+  # Checking for already completed runs: 
+  combo_name <- paste(condition, iterator, sep = "_")
+  if (combo_name %in% completed_runs) {
+    message(sprintf("✅ Skipping already processed: %s", combo_name))
+    i <- i + 1
+    next
+  }
+  
+  iter_start <- Sys.time()
+  cat(sprintf("[%d/%d] Running: Condition = %s | Iteration = %s | #CellTypes = %s \n", 
+              i, n_iterations, condition, iterator, length(list_of_cells[[1]])))
+  
+  # create subset
+  sub <- subset(obj, tissue_cell %in% list_of_cells[[1]])
+  
+  # Set identities and find markers
+  Idents(sub) <- "tissue_cell"
+  sub <- JoinLayers(sub)
+  markers <- FindAllMarkers(sub, only.pos = TRUE, min.pct = 0.1,logfc.threshold = 0.25, verbose = FALSE)
+  
+  # Save to a list and logfile
+  markers <- markers %>% 
+    separate(cluster, c("Tissue", "Celltype"), sep = "_", remove=FALSE) %>% 
+    mutate(Condition = condition, Iteration = iterator) 
+  
+  marker_outfile <- file.path(MARKER_LOG_DIR, paste0(condition, "_", iterator, "_", "markers.csv"))
+  write_csv(markers, marker_outfile)
+  
+  # Cleanup! 
+  cleanup_tmp_files()
+  
+  iter_end <- Sys.time()
+  duration <- round(as.numeric(difftime(iter_end, iter_start, units = "secs")), 2)
+  cat(sprintf("  ⏱️ Iteration time: %.2f sec | Total elapsed: %.2f sec\n\n", 
+              duration, as.numeric(difftime(iter_end, start_time, units = "secs"))))
+  
+  i <- i + 1
+
+}
+```
+

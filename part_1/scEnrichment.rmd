@@ -1,0 +1,437 @@
+---
+title: "Untitled"
+author: "Gustav Helms (qbg413)"
+date: "2025-09-19"
+output: html_document
+---
+
+```{r}
+# Load packages
+pacman::p_load(tidyverse, Seurat, BPCells, DISCOtoolkit)
+
+MARKER_LOG_DIR <- "results_disco/marker_logs"
+ENRICHMENT_LOG_DIR <- "results_disco/enrichment_logs"
+ref = readRDS("DISCOtmp/ref_geneset.rds")
+
+# Create output directories if not exist
+if (!dir.exists(ENRICHMENT_LOG_DIR)) dir.create(ENRICHMENT_LOG_DIR)
+
+```
+
+```{r}
+# Reading the marker files
+marker_files <- list.files(path = MARKER_LOG_DIR, pattern = "\\.csv$", full.names = TRUE)
+DEG <- marker_files %>%
+lapply(read_csv, col_types = cols(cluster = col_character()))
+
+```
+
+
+#####################################################################
+#################### RUNNING scENRICHMENTS ##########################
+#####################################################################
+
+```{r, include=FALSE}
+# Fethicng completed runts
+completed_runs <- list.files(ENRICHMENT_LOG_DIR, pattern = "_erichment.csv") %>%
+  str_remove("_erichment.csv")
+
+# ITERATOR
+i <- 1
+# Compute true total tasks (clusters across all DEG entries)
+total_tasks <- sum(map_int(DEG, ~ n_distinct(.x$cluster)))
+
+cat("Starting ENRICHMENT loop...\n")
+cat("Total iterations expected:", total_tasks, "\n\n")
+
+ 
+for (markers in DEG){
+  condition = markers$Condition[1]
+  iterator = markers$Iteration[1]
+  
+  for(c in unique(markers$cluster)){
+    # Checking for already completed runs: 
+    combo_name <- paste(condition, iterator, str_replace(c, "/", "_"), sep = "_")
+    if (combo_name %in% completed_runs) {
+      message(sprintf("✅ Skipping already processed: %s", combo_name))
+      i = i +1
+      next
+    }
+    
+    message(sprintf("[%d/%d] Running: Condition = %s | Iteration = %s | Cluster = %s \n", 
+              i, total_tasks, condition, iterator, c))
+    
+    
+    markers_c = filter(markers, cluster == c)
+    
+    # Preparing the input
+    cellid_input = markers_c %>% 
+      slice_min(order_by = p_val_adj, n = 50, with_ties = FALSE) %>% 
+      select(gene, avg_log2FC) %>% 
+      rename(logFC = avg_log2FC) %>% 
+      distinct(gene, logFC) 
+    
+  
+    # Run enrichment safely
+    cellid_res =  tryCatch({
+      CELLiDEnrichment(as.data.frame(cellid_input), reference = ref)
+    }, error = function(e) {
+      warning(sprintf("CELLiDEnrichment failed for %s: %s", combo_name, e$message))
+      NULL
+    })
+    
+    # Preparing output file
+    cellid_res <- cellid_res %>% mutate(cluster = c, actual_ct = markers_c$Celltype[1], actual_tis = markers_c$Tissue[1], condition = condition, iteration = iterator)
+    
+    # logging the enrichments
+    enrich_outfile <- file.path(ENRICHMENT_LOG_DIR, paste0(condition, "_", iterator, "_", str_replace(c, "/", "_"), "_erichment.csv"))
+    write_csv(cellid_res, enrich_outfile)
+    
+    # Clean up objects & memory
+    rm(cellid_res, cellid_input, markers_c)
+    gc(verbose = FALSE) # Garbage collection after removing objects
+    
+    i = i +1
+  }
+  
+  }
+
+```
+
+
+#####################################################################
+#################### ANALYSING ENRICHMENTS ##########################
+#####################################################################
+
+
+```{r}
+# Reading the enrichment files
+enrich_files <- list.files(path = ENRICHMENT_LOG_DIR, pattern = "\\.csv$", full.names = TRUE)
+enrichments <- enrich_files %>%
+lapply(read_csv, col_types = cols(cluster = col_character()))
+```
+
+
+```{r}
+# Function that passes marker names
+
+parse_marker_name <- function(x) {
+  m <- regexec("^\\s*Marker of\\s+(.*?)\\s+in\\s+(.*?)\\s*$", x, perl = TRUE)
+  parts <- regmatches(x, m)
+  celltype <- vapply(parts, function(p) if (length(p) >= 2) p[2] else NA_character_, "")
+  atlas    <- vapply(parts, function(p) if (length(p) >= 3) p[3] else NA_character_, "")
+  data.frame(celltype = celltype, atlas = atlas, stringsAsFactors = FALSE)
+}
+
+# Simple normalizer for matching (case/space-insensitive)
+.norm <- function(s) {
+  s <- tolower(trimws(s))
+  gsub("\\s+", " ", s, perl = TRUE)
+}
+```
+
+
+```{r}
+evaluate_scEnr <- function(df) {
+  
+  # Coerce and parse
+  df$pval <- as.numeric(df$pval)
+  parsed  <- parse_marker_name(df$name)
+  df$celltype <- parsed$celltype
+  df$atlas    <- parsed$atlas
+  
+  # Rank by ascending p-value
+  o <- order(df$pval, decreasing = FALSE, na.last = TRUE)
+  df <- df[o, , drop = FALSE]
+  
+  # Top-1 prediction
+  top1_celltype <- df$celltype[1]
+  top1_atlas    <- df$atlas[1]
+  top1_pval     <- df$pval[1]
+  top1_or       <- df$or[1]
+  
+  # Match (case/space-insensitive)
+  truth_norm <- .norm(df$actual_ct[1])
+  ct_norm    <- .norm(df$celltype)
+  
+  top1_matches_truth <- identical(.norm(top1_celltype), truth_norm)
+  top5_matches_truth <- any(ct_norm[1:5] == truth_norm)
+  
+  # Rank of the true label (first occurrence)
+  idx_true <- which(ct_norm == truth_norm)[1]
+  rank_of_truth <- if (length(idx_true)) idx_true else NA_integer_
+  RR = 1 / rank_of_truth
+  soft_hit = 1 / log2(rank_of_truth + 1)
+
+  
+  # –log10 p for the true label (or NA if not present)
+  truth_neglog10p <- if (!is.na(rank_of_truth)) -log10(df$pval[rank_of_truth]) else NA_real_
+  
+  data.frame(
+    Condition = df$condition[1],
+    Iteration = df$iteration[1],
+    Cluster = df$cluster[1],
+    Actual_ct = df$actual_ct[1],
+    Actual_tis = df$actual_tis[1],
+    
+    top1_celltype = top1_celltype,
+    top1_atlas    = top1_atlas,
+    top1_pval     = top1_pval,
+    top1_or       = top1_or,
+    top1_matches_truth = top1_matches_truth,
+    top5_matches_truth = top5_matches_truth,
+    rank_of_truth      = rank_of_truth,
+    RR = RR,
+    soft_hit = soft_hit,
+    truth_neglog10p    = truth_neglog10p,
+    stringsAsFactors = FALSE
+  )
+}
+```
+
+```{r}
+# Run function on all the clusters
+RES <- do.call(rbind, lapply(enrichments, evaluate_scEnr))
+# How many cells per iteration:
+RES <- RES %>%
+  group_by(Condition, Iteration) %>%
+  mutate(n_cells = n()) %>% 
+  ungroup() %>% 
+  mutate(n_cells = if_else(Condition == 1, 1L, n_cells)) # HARDCODE COND 1
+  
+
+write_csv(RES, "results_disco/predictions_enrichments.csv")
+
+```
+
+
+#####################################################################
+#################### PLOTTING ENRICHMENTS ##########################
+#####################################################################
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+
+results <- read_csv("results_disco/predictions_enrichments.csv")
+
+
+# Desired order for Condition axis
+condition_levels <- c(
+  "One cell type - One tissue",
+  "One cell type - Multiple tissues",
+  "2 similar cell types",
+  "3 similar cell types",
+  "N similar cell types",
+  "2 - N slightly more diverse cell type",
+  "2 - N highly diverse cell types",
+  "2 - N random cell types"
+)
+
+#------------------------------------------------------------
+# 1) Derive match class from rank_of_truth
+#------------------------------------------------------------
+results_plot <- results %>%
+  mutate(
+    match = case_when(
+      !is.na(rank_of_truth) & rank_of_truth == 1 ~ "Top 1",
+      !is.na(rank_of_truth) & rank_of_truth <= 5 ~ "Top 5",
+      TRUE ~ "No Match"
+    ),
+    match = factor(match, levels = c("Top 1", "Top 5", "No Match"))
+  )
+
+#------------------------------------------------------------
+# 2) Summarise to proportions by category (Condition here)
+#    If you later want Group/Organ too, add them into pivot_longer()
+#------------------------------------------------------------
+eval_summary <- results_plot %>%
+  pivot_longer(cols = c(Condition), names_to = "CategoryType", values_to = "Category") %>%
+  group_by(CategoryType, Category, match) %>%
+  tally(name = "n") %>%
+  group_by(CategoryType, Category) %>%
+  mutate(prop = n / sum(n)) %>%
+  ungroup() 
+
+
+#------------------------------------------------------------
+# 3) Plot with legend relabeled:
+#    - "match" -> "Top 1"
+#    - "partial match" -> "Top 3"
+#------------------------------------------------------------
+# Create the plot
+ggplot(eval_summary, aes(x = Category, y = prop, fill = match)) +
+  geom_col(position = position_fill(reverse = TRUE)) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("Top 1" = "#1b9e77", "Top 5" = "#d95f02", "No Match" = "#7570b3")) +
+  labs(x = NULL, y = "Proportion", fill = "Match Type",
+       title = "Proportion of cell types accurately matched by scEnrichment from DEG") +
+  facet_wrap(~ CategoryType, scales = "free_x", ncol = 1) + # Create separate plots for each CategoryType
+  #theme_minimal() +
+  scale_x_discrete(limits = condition_levels)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
+library(forcats)
+library(scales)
+
+results <- read_csv("results_disco/predictions_enrichments.csv")
+
+# If Method column doesn’t exist, create a dummy one (so we can facet by it if present later)
+if (!"Method" %in% names(results)) results <- mutate(results, Method = "All methods")
+
+# Order your Conditions on the x-axis
+code_map <- c(
+  "1" = "One cell type - One tissue",
+  "2" = "One cell type - Multiple tissues",
+  "3" = "2 similar cell types",
+  "4" = "3 similar cell types",
+  "5" = "N similar cell types",
+  "6" = "2 - N slightly more diverse cell type",
+  "7" = "2 - N highly diverse cell types",
+  "8" = "2 - N random cell types"
+)
+
+results <- results %>%
+  mutate(
+    Condition = recode(as.character(Condition), !!!code_map),
+    Condition = factor(Condition, levels = condition_levels))
+
+# Define basic hit flags (top1/top3/top5) + a monotone gain metric for rank-based plots
+results <- results %>%
+  mutate(
+    hit_top1 = !is.na(rank_of_truth) & rank_of_truth == 1,
+    hit_top3 = !is.na(rank_of_truth) & rank_of_truth <= 3,
+    hit_top5 = !is.na(rank_of_truth) & rank_of_truth <= 5,
+    # Reciprocal rank fallback if missing
+    RR = ifelse(is.na(RR) & !is.na(rank_of_truth), 1 / rank_of_truth, RR),
+    # nDCG for single-label truth = 1/log2(rank+1) normalized by ideal DCG (=1)
+    nDCG = ifelse(is.na(rank_of_truth), 0, 1 / log2(rank_of_truth + 1))
+  )
+
+```
+
+
+
+
+```{r}
+# Build top-k hits for k=1..10 (adjust kmax)
+kmax <- 10
+topk <- lapply(1:kmax, function(k) {
+  results %>%
+    mutate(hit = !is.na(rank_of_truth) & rank_of_truth <= k) %>%
+    group_by(Method, Condition) %>%
+    summarise(acc = mean(hit, na.rm = TRUE), .groups = "drop") %>%
+    mutate(k = k)
+}) %>% bind_rows()
+
+ggplot(topk, aes(x = k, y = acc, color = Condition)) +
+  geom_line() +
+  geom_point(size = 1) +
+  scale_y_continuous(labels = percent_format()) +
+  labs(x = "k", y = "Top-k accuracy", title = "Top-k accuracy curves by Condition") +
+  facet_wrap(~ Method) +
+  theme(legend.position = "bottom")
+
+```
+```{r}
+# 1) Aggregate by exact n_cells (and Method if present)
+by_cells <- results %>%
+  group_by(Method, n_cells) %>%
+  summarise(
+    top1_acc = mean(hit_top1, na.rm = TRUE),
+    top3_acc = mean(hit_top3, na.rm = TRUE),
+    n = dplyr::n(),
+    .groups = "drop"
+  ) %>%
+  # Normal approx 95% CI
+  mutate(
+    top1_se = sqrt(pmax(top1_acc * (1 - top1_acc) / n, 0)),
+    top3_se = sqrt(pmax(top3_acc * (1 - top3_acc) / n, 0)),
+    top1_lo = pmax(0, top1_acc - 1.96 * top1_se),
+    top1_hi = pmin(1, top1_acc + 1.96 * top1_se),
+    top3_lo = pmax(0, top3_acc - 1.96 * top3_se),
+    top3_hi = pmin(1, top3_acc + 1.96 * top3_se)
+  ) %>%
+  pivot_longer(
+    cols = c(top1_acc, top3_acc, top1_lo, top1_hi, top3_lo, top3_hi),
+    names_to = c("metric", ".value"),
+    names_pattern = "(top[13])_(acc|lo|hi)"
+  ) %>%
+  mutate(metric = recode(metric, top1 = "Top-1 accuracy", top3 = "Top-3 accuracy"))
+
+
+
+# 2) Plot
+ggplot(by_cells, aes(x = n_cells, y = acc, color = metric, fill = metric)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
+  geom_line() +
+  geom_point(alpha = 0.6, size = 1.6) +
+  facet_wrap(~ Method, scales = "free_y") +
+  scale_y_continuous(labels = percent_format(accuracy = 1), limits = c(0, 1)) +
+  # If n_cells spans orders of magnitude, uncomment the next line:
+  # scale_x_continuous(trans = "log10", breaks = pretty_breaks(6), labels = comma) +
+  scale_x_continuous(breaks = pretty_breaks(8), labels = comma) +
+  labs(
+    x = "Number of cells (n_cells)",
+    y = "Accuracy",
+    color = "Metric",
+    fill  = "Metric",
+    title = "Cell-typing accuracy vs. number of cells",
+    subtitle = "Mean Top-1 and Top-3 accuracy with 95% CI per n_cells"
+  ) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
+
+```
+
+```{r}
+soft <- results %>%
+  group_by(Method, Condition) %>%
+  summarise(
+    top1 = mean(hit_top1, na.rm = TRUE),
+    soft = mean(soft_hit, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(c(top1, soft), names_to = "Metric", values_to = "rate")
+
+ggplot(soft, aes(x = Condition, y = rate, fill = Metric)) +
+  geom_col(position = position_dodge(width = 0.7)) +
+  scale_y_continuous(labels = percent_format()) +
+  labs(y = "Rate", x = NULL, title = "Strict vs. soft-hit rate by Condition", fill = "") +
+  facet_wrap(~ Method) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+```{r}
+kmax <- 15
+gain <- lapply(1:kmax, function(k) {
+  results %>%
+    mutate(hit = !is.na(rank_of_truth) & rank_of_truth <= k) %>%
+    group_by(Method, Condition) %>%
+    summarise(gain = mean(hit, na.rm = TRUE), .groups = "drop") %>%
+    mutate(k = k)
+}) %>% bind_rows()
+
+ggplot(gain, aes(x = k, y = gain, color = Method)) +
+  geom_line() + geom_point(size = 0.8) +
+  scale_y_continuous(labels = percent_format()) +
+  labs(x = "k", y = "Cumulative gain", title = "Cumulative gain curves (by Condition)") +
+  facet_wrap(~ Condition)
+
+```
+
+
+

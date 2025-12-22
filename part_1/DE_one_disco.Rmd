@@ -1,0 +1,114 @@
+---
+title: "condition_one_disco"
+author: "Gustav Helms (qbg413)"
+date: "2025-09-15"
+output: html_document
+---
+```{r}
+# Load packages
+pacman::p_load(tidyverse, Seurat, BPCells)
+
+source("cleanup_function.R")
+
+MARKER_LOG_DIR <- "results_disco/marker_logs"
+GROUP_DIR <- "disco_data/groups_conditions.csv"
+MARKER_LOG_COLS <- c("p_val","avg_log2FC","pct.1","pct.2","p_val_adj","cluster",
+                     "Tissue","Celltype","gene","Condition","Iteration")
+
+# Create output directories if not exist
+if (!dir.exists(MARKER_LOG_DIR)) dir.create(MARKER_LOG_DIR)
+
+obj <- readRDS("disco_data/disco_combined_normalized.rds")
+```
+
+```{r} 
+groups <- read_delim(GROUP_DIR, delim = ",", show_col_types = FALSE)
+
+# For condition one subset! 
+groups <- groups %>% 
+  filter(condition == 1)
+```
+
+```{r}
+####### CONDITION 1 ######## 
+###### NEGATIVE TEST #######
+# ITERATOR
+i <- 1
+n_iterations <- dim(groups)[1]
+start_time <- Sys.time()
+
+completed_runs <- list.files(MARKER_LOG_DIR, pattern = "_markers.csv") %>%
+  str_remove("_markers.csv")
+
+cat("Starting DE loop for condition 1...\n")
+cat("Total iterations expected:", n_iterations, "\n\n")
+
+for (i in 1:nrow(groups)){
+  pairs <- str_split_fixed(groups[[i, 1]], "_", n =2)
+  organ <- pairs[1]
+  cell <- pairs[2]
+  condition <- groups[[i, 2]]
+  iterator <- groups[[i, 3]]
+  
+  # Checking for already completed runs: 
+  combo_name <- paste(condition, iterator, sep = "_")
+  if (combo_name %in% completed_runs) {
+    message(sprintf("✅ Skipping already processed: %s", combo_name))
+    i <- i + 1
+    next
+  }
+  
+  iter_start <- Sys.time()
+  message(sprintf("[%d/%d] Running: Condition = %s | Iteration = %s\n", 
+              i, n_iterations, condition, iterator))
+  
+  # Create subset
+  sub <- subset(obj, cell_type == cell & tissue == organ)
+  # Layer name
+  data_name <- grep("^data\\.", names(sub[["RNA"]]@layers), value = TRUE)
+  # Load normalized data into memory - SPEEDS up FindVariableFeatures()
+  sub[["RNA"]][data_name] <- as(sub[["RNA"]][data_name], "dgCMatrix")
+  
+  # Standard Seurat workflow for finding clusters
+  sub <- sub %>% 
+    FindVariableFeatures(selection.method = "vst", nfeatures = 3000, verbose = FALSE) %>%
+    ScaleData(verbose = FALSE) %>%
+    RunPCA(verbose = FALSE) %>%
+    FindNeighbors(dims = 1:30, verbose = FALSE) %>%
+    FindClusters(resolution = 0.01, verbose = FALSE)  # SMALL resolution for few clusters
+    #RunUMAP(dims = 1:30) 
+  
+  # If there is only one cluster! 
+  res = 0.01
+  while (length(unique(sub$seurat_clusters)) <= 1){
+    res = res + 0.01
+    message(sprintf("Only one cluster found. Trying again with resolution %s", res))
+    sub <- FindClusters(sub, resolution = res, verbose = FALSE) 
+  }
+  
+  # Find top markers 
+  markers <- FindAllMarkers(sub, only.pos = TRUE, min.pct = 0.1,logfc.threshold = 0.25)
+  
+  # Save to a list and logfile
+  markers <- markers %>% 
+    mutate(Tissue = organ, Celltype = cell, Condition = condition, Iteration = iterator) %>% 
+    select(MARKER_LOG_COLS) 
+  
+  marker_outfile <- file.path(MARKER_LOG_DIR, paste0(condition, "_", iterator, "_", "markers.csv"))
+  write_csv(markers, marker_outfile)
+  
+  # Cleanup! 
+  cleanup_tmp_files()
+  
+  iter_end <- Sys.time()
+  duration <- round(as.numeric(difftime(iter_end, iter_start, units = "secs")), 2)
+  message(sprintf("\n⏱️ Iteration time: %.2f sec | Total elapsed: %.2f sec\n\n", 
+              duration, as.numeric(difftime(iter_end, start_time, units = "secs"))))
+  
+  i <- i + 1
+}
+```
+
+
+
+
