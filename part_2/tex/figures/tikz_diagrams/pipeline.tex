@@ -1,0 +1,35 @@
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=0.5cm and 0.5cm,
+    box/.style={rectangle, draw, thick, minimum width=2.5cm, minimum height=1cm, align=center, font=\footnotesize},
+    data/.style={box, fill=blue!10},
+    split/.style={box, fill=yellow!20},
+    arrow/.style={->, thick, >=stealth},
+]
+% Raw data
+\node[data] (raw) {Raw scRNA-seq\\Data};
+% Split node
+% Three split outputs with different colors
+\node[box, fill=green!20, below left=of raw, xshift=-0.5cm] (train) {Training Set\\(70\%)};
+\node[box, fill=orange!20, below=of raw] (val) {Validation Set\\(20\%)};
+\node[box, fill=red!20, below right=of raw, xshift=0.5cm] (test) {Test Set\\(10\%)};
+% Arrows
+\draw[arrow] (raw) -- (train);
+\draw[arrow] (raw) -- (val);
+\draw[arrow] (raw) -- (test);
+
+
+\node[box, fill=green!20, below=of train, yshift=-3cm] (vaetrain) {VAE training};
+
+
+\draw[arrow] (train) -- (vaetrain);
+
+\node[box, fill=orange!20, below=of vaetrain, yshift=-2cm] (vaeval) {VAE training};
+
+\draw[arrow] (vaetrain) -- (vaeval);
+
+\end{tikzpicture}
+\caption{Data splitting strategy.}
+\label{fig:data_split}
+\end{figure}

@@ -1,0 +1,24 @@
+\begin{figure}[H]
+    \centering
+
+    \begin{subfigure}[b]{0.8\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/PART_1/plot1_stacked_bar_conditions.png}
+        \caption{Stacked bar plot showing Top-1 and Top-5 GSEA accuracy for each subset group category.}
+        \label{fig:stacked_bar_part_1}
+    \end{subfigure}
+
+    \vspace{1em}
+
+    \begin{subfigure}[b]{0.8\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/PART_1/plot2_topk_match_condition.png}
+        \caption{Cumulative proportion of subsets for which the correct cell type is recovered within the top $k$ GSEA matches. Each line corresponds to a subset group category.}
+        \label{fig:topk_match}
+    \end{subfigure}
+
+    \caption{Evaluation of DE performance across similarity-defined subset groups.  
+    (A) Top-1 and Top-5 accuracy.  
+    (B) Rank-based recovery performance across top $k$ GSEA matches.}
+    \label{fig:part1_combined_results}
+\end{figure}

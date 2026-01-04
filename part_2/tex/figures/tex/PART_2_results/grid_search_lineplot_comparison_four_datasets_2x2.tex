@@ -1,0 +1,15 @@
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figures/PART_2_results/grid_search_lineplot_comparison_four_datasets_2x2.png}
+    \caption{Grid search results comparing cLISI scores across latent dimensions and denoising steps for four datasets. 
+    Each subplot shows cLISI scores as a function of denoising steps (x-axis) for multiple VAE latent dimensions (colored lines). 
+    Point at denoising step 0 represents the baseline VAE embedding (no denoising), while subsequent points show progressive denoising refinement. 
+    Horizontal dashed gray line shows best PCA score with corresponding dimensionality, 
+    black dashed line shows raw HVG baseline. 
+    \textbf{Top row:} allCT\_1.0k (left) and group\_5\_subset\_76 (right). 
+    \textbf{Bottom row:} GSE114412\_cluster (left) and GSE114412\_subcluster (right). 
+    All subplots share the same y-axis scale (0.75--1.0) for direct comparison. 
+    PCA consistently outperforms VAE-based methods across all datasets and hyperparameter configurations. 
+    Denoising shows minimal improvement over baseline VAE embeddings, with most trajectories remaining flat or showing marginal changes across denoising steps.}
+    \label{fig:grid_search_cLISI}
+\end{figure}
