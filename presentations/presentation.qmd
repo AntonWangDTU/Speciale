@@ -1,0 +1,41 @@
+---
+title: "Presentation til møde "
+format:
+  revealjs: 
+    theme: dracula
+resources:
+  - ~/assets/
+---
+
+# First slide
+
+---
+
+
+### Andet slide
+
+:::: .columns
+::: {.column width=20%}
+<div style="font-size: 0.7em;">
+- 1 
+- 2
+</div>
+:::
+
+::: {.column width=80%}
+
+![DISCO](figures/DATASETS/UMAP_disco.png){width=100%}
+
+:::
+::::
+
+
+
+--- 
+
+### Baseline
+
+- Agenda
+
+---
+

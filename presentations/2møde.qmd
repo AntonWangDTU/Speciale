@@ -1,0 +1,64 @@
+---
+title: "Presentation til møde "
+format:
+  revealjs: 
+    theme: dracula
+resources:
+  - ~/assets/
+---
+
+
+# First slide
+
+
+---
+
+### Forprojektet
+
+Vi prøvede egentlig bare at bevise at desto mere homogent et dataset er 
+desto mere upræcis bliver celltyping
+
+
+
+--- 
+
+### Baseline
+
+- Agenda
+
+---
+
+### Referece baseret / ranking based
+
+- AUCELLS 
+  - A marker set is made for each cell in the reference, could be with `FindAllMarkers`
+
+
+::: {#tbl-panel layout-ncol=2 style="font-size: 0.8em; width: 80%;"}
+
+| Col1 | Col2 |
+|------|------|
+| beta cell | ${gene1,...,gene10}$ |
+| alpha cell | ${gene1,...,gene10}$ |
+
+: First Table {#tbl-first}
+
+| Col1 | Col2 |
+|------|------|
+| beta cell | ${gene1,...,gene10}$ |
+| alpha cell |${gene1,...,gene10}$ |
+
+: Second Table {#tbl-second}
+
+Main Caption
+:::
+
+---
+
+
+### IDE
+![](2møde_files/AUCELL_ide1.png)
+
+---
+
+
